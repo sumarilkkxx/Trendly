@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { PageMotion } from '../components/ui/PageMotion';
 import { api } from '../api';
+import { BentoCard } from '../components/ui/BentoCard';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 
 export default function Sources() {
   const [list, setList] = useState([]);
@@ -41,65 +46,68 @@ export default function Sources() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="font-display text-2xl font-semibold text-cyber-accent">消息源配置</h1>
-
-      <div className="hud-card p-5 space-y-3">
-        <p className="text-cyber-muted text-sm">
-          内置：Hugging Face 博客。可添加自定义 RSS（如 Planet AI、twitrss.com 转 Twitter）
+    <PageMotion className="space-y-6">
+      <div>
+        <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white">
+          消息源
+        </h1>
+        <p className="mt-1 text-slate-400 text-sm">
+          内置 Hugging Face · 可添加 Planet AI、twitrss 等 RSS
         </p>
-        <div className="flex flex-wrap gap-2">
-          <input
+      </div>
+
+      <BentoCard>
+        <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+          <Input
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="RSS URL"
-            className="flex-1 min-w-[200px] px-3 py-2 rounded bg-cyber-bg/50 border border-cyber-border text-slate-200 placeholder-cyber-muted focus:outline-none focus:border-cyber-accent"
+            className="flex-1 min-w-[200px]"
+            aria-label="RSS 地址"
           />
-          <input
+          <Input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="名称（可选）"
-            className="w-32 px-3 py-2 rounded bg-cyber-bg/50 border border-cyber-border text-slate-200 placeholder-cyber-muted focus:outline-none focus:border-cyber-accent"
+            className="w-32"
+            aria-label="源名称（可选）"
           />
-          <button
-            onClick={add}
-            className="px-4 py-2 rounded bg-cyber-accent/20 text-cyber-accent hover:bg-cyber-accent/30 transition"
-          >
-            添加
-          </button>
+          <Button onClick={add}>添加</Button>
         </div>
-      </div>
+      </BentoCard>
 
-      <div className="hud-card p-5">
-        <h2 className="font-display text-lg text-cyber-accent mb-4">自定义 RSS 源</h2>
+      <BentoCard>
+        <h2 className="font-display text-cyber-accent font-medium mb-4">自定义 RSS</h2>
         {list.length === 0 ? (
-          <p className="text-cyber-muted text-sm">暂无自定义源</p>
+          <p className="text-slate-500 text-sm">暂无</p>
         ) : (
           <ul className="space-y-2">
-            {list.map((s) => (
-              <li
+            {list.map((s, i) => (
+              <motion.li
                 key={s.id}
-                className="flex items-center justify-between py-2 px-3 rounded bg-cyber-bg/30"
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.03 }}
+                className="flex items-center justify-between py-2 px-3 rounded-lg bg-black/20 hover:bg-black/30 transition"
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <span className="text-slate-200">{s.name || s.url}</span>
-                  <span className="text-cyber-muted text-xs ml-2 truncate max-w-[300px]">
-                    {s.url}
-                  </span>
+                  <span className="text-slate-500 text-xs ml-2 truncate block">{s.url}</span>
                 </div>
                 <button
                   onClick={() => remove(s.id)}
-                  className="text-xs px-2 py-1 rounded text-red-400 hover:bg-red-500/20"
+                  className="text-red-400/80 hover:text-red-400 text-sm ml-2 shrink-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400/50 rounded px-2 py-1.5"
+                  aria-label="删除此消息源"
                 >
                   删除
                 </button>
-              </li>
+              </motion.li>
             ))}
           </ul>
         )}
-      </div>
-    </div>
+      </BentoCard>
+    </PageMotion>
   );
 }

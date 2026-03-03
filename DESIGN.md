@@ -134,11 +134,10 @@ Web 展示 (Spectre UI) / 邮件推送
 ### 5.1 设计风格
 
 - **风格**：科技未来风（Tech Futuristic / Cyber HUD）
-- **UI 组件库**：**Spectre UI**（`@spectre-ui/core`）— 专为未来科技风设计，含深色赛博美学、HUD 风格、Framer Motion 动效、Radix 无障碍
-- **备选**：若兼容性需求高，可用 shadcn/ui + 自定义赛博主题
+- **设计系统**：详见 [design-system/MASTER.md](./design-system/MASTER.md)，基于 **UI/UX Pro Max** 技能规范统一界面
 - **主色**：Cyber Dark 主题 — 深色底 + 青/蓝/紫霓虹高亮、网格背景、发光边框
-- **字体**：科技感无衬线（如 Space Grotesk、Orbitron）+ 等宽辅助
-- **布局**：侧边导航 + 卡片网格，响应式，支持 `prefers-reduced-motion`
+- **字体**：Orbitron（标题）+ JetBrains Mono（正文）
+- **布局**：浮动导航 + Bento 卡片网格，响应式，支持 `prefers-reduced-motion`
 
 ### 5.2 主要页面
 

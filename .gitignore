@@ -5,3 +5,4 @@ data/
 *.sqlite
 client/dist/
 .DS_Store
+MASTER.md

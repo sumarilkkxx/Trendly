@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
+import { BentoCard } from '../components/ui/BentoCard';
+import { Button } from '../components/ui/Button';
+import { HoverEffect } from '../components/ui/HoverEffect';
+import { PageMotion } from '../components/ui/PageMotion';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ keywords: 0, hotspots: 0, sources: 0 });
@@ -11,11 +15,11 @@ export default function Dashboard() {
       try {
         const [kw, hp, src] = await Promise.all([
           api.keywords.list(),
-          api.hotspots.list({ limit: 5 }),
+          api.hotspots.list({ limit: 6 }),
           api.sources.list(),
         ]);
         setStats({ keywords: kw.length, hotspots: hp.total ?? 0, sources: src.length });
-        setHotspots(hp.items ?? []);
+        setHotspots((hp.items ?? []).map((h) => ({ ...h, link: h.url, description: h.summary })));
       } catch (e) {
         console.error(e);
       }
@@ -26,8 +30,8 @@ export default function Dashboard() {
     setScanning(true);
     try {
       await api.scan();
-      const hp = await api.hotspots.list({ limit: 5 });
-      setHotspots(hp.items ?? []);
+      const hp = await api.hotspots.list({ limit: 6 });
+      setHotspots((hp.items ?? []).map((h) => ({ ...h, link: h.url, description: h.summary })));
       setStats((s) => ({ ...s, hotspots: hp.total ?? 0 }));
     } catch (e) {
       alert(e.message);
@@ -37,55 +41,48 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-semibold text-cyber-accent">仪表盘</h1>
-        <button
-          onClick={runScan}
-          disabled={scanning}
-          className="px-4 py-2 rounded bg-cyber-accent/20 text-cyber-accent hover:bg-cyber-accent/30 transition disabled:opacity-50"
-        >
-          {scanning ? '扫描中…' : '手动扫描'}
-        </button>
+    <PageMotion className="space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white">
+            第一时间发现 AI 热点
+          </h1>
+          <p className="mt-1 text-slate-400 text-sm">
+            简洁、高效、永不落伍
+          </p>
+        </div>
+        <Button onClick={runScan} disabled={scanning} className="rounded-full">
+          {scanning ? '扫描中…' : '立即扫描'}
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: '关键词', value: stats.keywords, cls: 'text-cyber-accent' },
-          { label: '热点总数', value: stats.hotspots, cls: 'text-cyber-glow' },
-          { label: 'RSS 源', value: stats.sources, cls: 'text-cyan-400' },
-        ].map(({ label, value, cls }) => (
-          <div key={label} className="hud-card p-5">
-            <div className="text-cyber-muted text-sm">{label}</div>
-            <div className={`text-2xl font-display font-semibold ${cls}`}>{value}</div>
-          </div>
+          { label: '关键词', value: stats.keywords, cls: 'text-cyber-accent', delay: 0 },
+          { label: '热点', value: stats.hotspots, cls: 'text-cyan-400', delay: 0.05 },
+          { label: 'RSS 源', value: stats.sources, cls: 'text-emerald-400', delay: 0.1 },
+        ].map(({ label, value, cls, delay }) => (
+          <BentoCard key={label} delay={delay}>
+            <div className="text-slate-400 text-sm">{label}</div>
+            <div className={`text-3xl font-display font-bold mt-1 ${cls}`}>{value}</div>
+          </BentoCard>
         ))}
       </div>
 
-      <div className="hud-card p-5">
-        <h2 className="font-display text-lg text-cyber-accent mb-4">最新热点</h2>
+      <div>
+        <h2 className="font-display text-lg font-semibold text-cyber-accent mb-4">
+          最新热点
+        </h2>
         {hotspots.length === 0 ? (
-          <p className="text-cyber-muted text-sm">暂无热点，添加消息源并运行扫描</p>
+          <BentoCard>
+            <p className="text-slate-500 text-sm text-center py-8">
+              暂无热点 · 添加消息源后点击「立即扫描」
+            </p>
+          </BentoCard>
         ) : (
-          <ul className="space-y-3">
-            {hotspots.map((h) => (
-              <li key={h.id} className="border-b border-cyber-border/30 pb-3 last:border-0">
-                <a
-                  href={h.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-cyber-accent hover:underline"
-                >
-                  {h.title}
-                </a>
-                <div className="text-xs text-cyber-muted mt-1">
-                  {h.source} • {h.summary?.slice(0, 80)}…
-                </div>
-              </li>
-            ))}
-          </ul>
+          <HoverEffect items={hotspots} />
         )}
       </div>
-    </div>
+    </PageMotion>
   );
 }

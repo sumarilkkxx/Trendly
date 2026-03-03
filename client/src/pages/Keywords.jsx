@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { PageMotion } from '../components/ui/PageMotion';
 import { api } from '../api';
+import { BentoCard } from '../components/ui/BentoCard';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 
 export default function Keywords() {
   const [list, setList] = useState([]);
@@ -49,64 +54,71 @@ export default function Keywords() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="font-display text-2xl font-semibold text-cyber-accent">关键词管理</h1>
-
-      <div className="hud-card p-5">
-        <p className="text-cyber-muted text-sm mb-3">
-          添加关键词后，系统会从各消息源拉取内容并过滤匹配
+    <PageMotion className="space-y-6">
+      <div>
+        <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white">
+          关键词管理
+        </h1>
+        <p className="mt-1 text-slate-400 text-sm">
+          添加后系统将自动匹配各消息源
         </p>
-        <div className="flex gap-2">
-          <input
+      </div>
+
+      <BentoCard>
+        <label htmlFor="kw-input" className="block text-slate-400 text-sm mb-4">
+          添加监控关键词
+        </label>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Input
+            id="kw-input"
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && add()}
-            placeholder="例如：GPT-5、Vibe Coding"
-            className="flex-1 px-3 py-2 rounded bg-cyber-bg/50 border border-cyber-border text-slate-200 placeholder-cyber-muted focus:outline-none focus:border-cyber-accent"
+            placeholder="如 GPT-5、Vibe Coding、Claude"
+            className="flex-1"
+            aria-label="关键词输入"
           />
-          <button
-            onClick={add}
-            className="px-4 py-2 rounded bg-cyber-accent/20 text-cyber-accent hover:bg-cyber-accent/30 transition"
-          >
-            添加
-          </button>
+          <Button onClick={add}>添加</Button>
         </div>
-      </div>
+      </BentoCard>
 
-      <div className="hud-card p-5">
-        <h2 className="font-display text-lg text-cyber-accent mb-4">已有关键词</h2>
+      <BentoCard>
+        <h2 className="font-display text-cyber-accent font-medium mb-4">已有关键词</h2>
         {list.length === 0 ? (
-          <p className="text-cyber-muted text-sm">暂无关键词</p>
+          <p className="text-slate-500 text-sm">暂无</p>
         ) : (
-          <ul className="space-y-2">
-            {list.map((k) => (
-              <li
+          <div className="flex flex-wrap gap-2">
+            {list.map((k, i) => (
+              <motion.div
                 key={k.id}
-                className="flex items-center justify-between py-2 px-3 rounded bg-cyber-bg/30"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03 }}
+                className="flex items-center gap-2 rounded-lg bg-black/30 px-3 py-2 border border-white/5"
               >
-                <span className={k.enabled ? 'text-slate-200' : 'text-cyber-muted line-through'}>
+                <span className={k.enabled ? 'text-slate-200' : 'text-slate-500 line-through'}>
                   {k.keyword}
                 </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => toggle(k.id, k.enabled)}
-                    className="text-xs px-2 py-1 rounded text-cyber-accent hover:bg-cyber-accent/20"
-                  >
-                    {k.enabled ? '禁用' : '启用'}
-                  </button>
-                  <button
-                    onClick={() => remove(k.id)}
-                    className="text-xs px-2 py-1 rounded text-red-400 hover:bg-red-500/20"
-                  >
-                    删除
-                  </button>
-                </div>
-              </li>
+                <button
+                  onClick={() => toggle(k.id, k.enabled)}
+                  className="text-xs text-cyber-accent hover:underline cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyber-accent/50 rounded px-1"
+                  aria-label={k.enabled ? '禁用' : '启用'}
+                >
+                  {k.enabled ? '禁用' : '启用'}
+                </button>
+                <button
+                  onClick={() => remove(k.id)}
+                  className="text-xs text-red-400/80 hover:text-red-400 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400/50 rounded px-1"
+                  aria-label="删除"
+                >
+                  删除
+                </button>
+              </motion.div>
             ))}
-          </ul>
+          </div>
         )}
-      </div>
-    </div>
+      </BentoCard>
+    </PageMotion>
   );
 }
