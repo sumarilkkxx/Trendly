@@ -1,0 +1,27 @@
+{
+  "name": "trendly",
+  "version": "1.0.0",
+  "description": "Trendly - 自动发现 AI 领域热点并通知",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "node server/index.js",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "node server/index.js",
+    "install:all": "npm install && cd client && npm install"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.1",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.16",
+    "rss-parser": "^3.13.0",
+    "snoowrap": "^1.23.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

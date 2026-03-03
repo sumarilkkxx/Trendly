@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cyber-bg: #0a0e17;
+  --cyber-card: #0f1629;
+  --cyber-accent: #00d4aa;
+  --cyber-glow: #00ffcc;
+}
+
+body {
+  @apply bg-cyber-bg text-slate-200 antialiased;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.font-display {
+  font-family: 'Orbitron', sans-serif;
+}
+
+/* HUD-style card */
+.hud-card {
+  @apply rounded-lg border border-cyber-border/50 bg-cyber-card/80 backdrop-blur;
+  box-shadow: 0 0 0 1px rgba(0, 212, 170, 0.1), 0 0 20px rgba(0, 212, 170, 0.05);
+}
+
+.hud-card:hover {
+  box-shadow: 0 0 0 1px rgba(0, 212, 170, 0.2), 0 0 25px rgba(0, 212, 170, 0.1);
+}
