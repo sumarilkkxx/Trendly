@@ -15,9 +15,9 @@ export async function fetchHackerNews(keywords = []) {
     : ['AI', 'machine learning', 'GPT', 'LLM', 'Claude', 'open source'];
   const createdAtMin = Math.floor((Date.now() - DAYS * 24 * 60 * 60 * 1000) / 1000);
 
-  for (const q of queries.slice(0, 5)) {
+  for (const q of queries.slice(0, 6)) {
     try {
-      const url = `${HN_API}/search?query=${encodeURIComponent(q)}&tags=story&numericFilters=points>${MIN_POINTS},created_at_i>${createdAtMin}&hitsPerPage=15`;
+      const url = `${HN_API}/search?query=${encodeURIComponent(q)}&tags=story&numericFilters=points>${MIN_POINTS},created_at_i>${createdAtMin}&hitsPerPage=25`;
       const res = await fetch(url, {
         headers: { 'User-Agent': 'Trendly/1.0' },
       });

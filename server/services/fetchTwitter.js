@@ -3,17 +3,19 @@ import { getTwitterFilterConfig, passesTwitterFilter } from './twitterFilter.js'
 
 export async function fetchTwitter(keywords = [], filterConfig) {
   const apiKey = process.env.TWITTERAPI_IO_API_KEY;
-  if (!apiKey || !keywords.length) return [];
+  if (!apiKey) return [];
 
   const config = filterConfig || getTwitterFilterConfig({});
-  const terms = keywords.slice(0, 3).map((k) => `"${k}"`).join(' OR ');
+  const terms = keywords.length
+    ? keywords.slice(0, 3).map((k) => `"${k}"`).join(' OR ')
+    : 'AI OR GPT OR LLM OR Claude';
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const query = `${terms || 'AI OR GPT'} since:${since}`;
+  const query = `${terms} since:${since}`;
 
   const items = [];
   let cursor = '';
   let page = 0;
-  const maxPages = 2;
+  const maxPages = 3;
 
   try {
     while (page < maxPages) {

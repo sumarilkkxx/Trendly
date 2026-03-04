@@ -9,16 +9,64 @@ import { fetchDuckDuckGo } from './fetchDuckDuckGo.js';
 import { getTwitterFilterConfig } from './twitterFilter.js';
 import { filterAndSummarize } from './openRouter.js';
 
-function matchKeyword(text, keywords) {
-  if (!keywords?.length || !text) return true;
-  const lower = text.toLowerCase();
-  return keywords.some((k) => lower.includes(k.toLowerCase()));
-}
+/** 策略：数据采集（尽量多）→ 基础过滤（去重、时间）→ AI 深度分析（相关性、真假）→ 最终展示 */
 
 function getMatchedKeywords(text, keywords) {
   if (!keywords?.length || !text) return [];
   const lower = text.toLowerCase();
   return keywords.filter((k) => lower.includes(k.toLowerCase()));
+}
+
+// URL 归一化 & 跨来源去重，避免同一条新闻在列表中重复出现
+function normalizeUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    const u = new URL(url);
+    u.hash = '';
+    if (u.pathname === '/') u.pathname = '';
+    return u.toString().replace(/\/$/, '');
+  } catch {
+    return url;
+  }
+}
+
+function dedupeByUrl(items) {
+  const seen = new Map();
+  const sourcePriority = {
+    twitter: 4,
+    hackernews: 4,
+    reddit: 3,
+    googlenews: 2,
+    duckduckgo: 2,
+    devnews: 2,
+    huggingface: 2,
+    rss: 1,
+  };
+
+  for (const item of items) {
+    const key = normalizeUrl(item.url || item.link || '');
+    if (!key) continue;
+    const prev = seen.get(key);
+    if (!prev) {
+      seen.set(key, item);
+      continue;
+    }
+    const getPriority = (source) => {
+      if (!source) return 0;
+      const s = String(source).toLowerCase();
+      if (s.startsWith('reddit:')) return sourcePriority.reddit;
+      if (s.startsWith('rss:')) return sourcePriority.rss;
+      if (s.startsWith('devnews:')) return sourcePriority.devnews;
+      return sourcePriority[s] ?? 0;
+    };
+    const p1 = getPriority(prev.source);
+    const p2 = getPriority(item.source);
+    if (p2 > p1) {
+      seen.set(key, item);
+    }
+  }
+
+  return Array.from(seen.values());
 }
 
 function hashInt(str) {
@@ -94,11 +142,24 @@ export async function runScan() {
   const results = await Promise.all(fetchers);
   for (const r of results) all.push(...(r || []));
 
+  // 阶段 2：基础过滤 - 时间窗口（7 天）+ 按 URL 跨来源去重
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const recent = all.filter((item) => {
+  const recentRaw = all.filter((item) => {
     const pub = item.publishedAt ? new Date(item.publishedAt) : null;
     return !pub || pub >= cutoff;
   });
+
+  const recent = dedupeByUrl(recentRaw);
+
+  // 按发布时间倒序，优先处理最新内容；单次扫描最多处理 250 条以控制 AI 调用量
+  const maxToProcess = 250;
+  const toProcess = recent
+    .sort((a, b) => {
+      const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return tb - ta;
+    })
+    .slice(0, maxToProcess);
 
   const upsertStmt = db.prepare(`
     INSERT INTO hotspots (
@@ -120,10 +181,9 @@ export async function runScan() {
 
   let newCount = 0;
 
-  for (const item of recent) {
+  // 阶段 3：AI 深度分析（相关性、真实性、重要程度）- 不再预先按关键词过滤，由 AI 判断
+  for (const item of toProcess) {
     const text = [item.title, item.summary, item.rawContent].filter(Boolean).join(' ');
-    if (kwList.length && !matchKeyword(text, kwList)) continue;
-
     const matchedKws = getMatchedKeywords(text, kwList);
     const { keep, summary, relevance, importance, authenticity } = await filterAndSummarize(item, kwList);
     if (!keep) continue;
@@ -159,5 +219,5 @@ export async function runScan() {
     }
   }
 
-  return { scanned: recent.length, new: newCount };
+  return { scanned: toProcess.length, new: newCount };
 }

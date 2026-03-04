@@ -14,7 +14,7 @@ export async function fetchGoogleNews(keywords = []) {
   const queries = keywords.length ? keywords : ['AI', 'artificial intelligence', 'machine learning'];
   const items = [];
 
-  for (const q of queries.slice(0, 3)) {
+  for (const q of queries.slice(0, 5)) {
     try {
       const url = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}+when:7d&hl=en-US&gl=US&ceid=US:en`;
       const feed = await parser.parseURL(url);

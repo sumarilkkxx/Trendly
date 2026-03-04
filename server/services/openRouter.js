@@ -15,8 +15,10 @@ export async function filterAndSummarize(item, keywords = []) {
   const kwHint = keywords.length ? ` 用户关注关键词：${keywords.join('、')}` : '';
 
   const systemPrompt = `你是一个 AI 内容审核助手。判断以下内容：
-1. 是否保留：真实、有价值的 AI/技术相关资讯保留，营销、假冒、低质、无关内容过滤
-2. 真实性：verified（AI 验证为真实）或 suspected_false（疑似虚假/需警惕）
+1. 是否保留：真实、有价值的 AI/技术相关资讯保留；营销、假冒、低质、无关、虚假爆料过滤
+2. 真实性（严格判断）：
+   - verified：已证实或来源可信、表述客观的资讯
+   - suspected_false：明显夸大、未证传闻、标题党、恶搞、伪造截图/公告、钓鱼式「重大发布」等
 3. 重要程度（严格按以下标准）：
    - urgent：安全漏洞/重大事故、监管政策变化、核心服务大面积中断、官方紧急公告
    - high：重要版本发布（如 GPT-5、Claude 4）、重大合作/收购、重要论文或能力突破、行业里程碑
@@ -38,7 +40,10 @@ export async function filterAndSummarize(item, keywords = []) {
 输出：{"keep": true, "summary": "5 个 GPT 提示词优化技巧", "relevance": 75, "importance": "medium", "authenticity": "verified"}
 
 输入：有人用 AI 画了幅风景图
-输出：{"keep": true, "summary": "AI 绘画示例", "relevance": 40, "importance": "low", "authenticity": "verified"}`;
+输出：{"keep": true, "summary": "AI 绘画示例", "relevance": 40, "importance": "low", "authenticity": "verified"}
+
+输入：OpenAI 内部泄露 GPT-6 源码（无官方来源、仅截图）
+输出：{"keep": false, "summary": "", "relevance": 0, "importance": "low", "authenticity": "suspected_false"}`;
 
   const userPrompt = `内容来源：${item.source}\n标题：${item.title}\n\n正文片段：\n${text}\n${kwHint}\n\n请判断并回复 JSON。`;
 

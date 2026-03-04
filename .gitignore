@@ -10,3 +10,4 @@ MASTER.md
 design-system
 *.log
 docs
+test/
