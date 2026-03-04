@@ -15,9 +15,9 @@ import { Input } from '@/components/ui/input';
 import { AuroraBackground } from '@/components/ui/AuroraBackground';
 
 const TWITTER_MODES = [
-  { id: 'loose', label: '宽松模式', hint: '点赞≥5，转发≥2，浏览≥200', desc: '保留更多内容' },
-  { id: 'standard', label: '标准模式', hint: '点赞≥10，转发≥5，浏览≥500', desc: '推荐' },
-  { id: 'strict', label: '严格模式', hint: '点赞≥50，转发≥20，浏览≥2000', desc: '只保留热门' },
+  { id: 'loose', label: '宽松模式', hint: '点赞≥5，转发≥2，浏览≥200，粉丝≥50', desc: '保留更多内容' },
+  { id: 'standard', label: '标准模式', hint: '点赞≥10，转发≥5，浏览≥500，粉丝≥100，排除回复', desc: '推荐' },
+  { id: 'strict', label: '严格模式', hint: '点赞≥50，转发≥20，浏览≥2000，粉丝≥100，排除回复', desc: '只保留热门' },
   { id: 'custom', label: '自定义', hint: '我来指定具体阈值', desc: '' },
 ];
 
@@ -25,10 +25,12 @@ export default function SettingsPage() {
   const [s, setS] = useState({
     scan_interval_minutes: 30,
     notify_interval_hours: 4,
-    twitter_filter_mode: 'strict',
-    twitter_min_likes: 50,
-    twitter_min_retweets: 20,
-    twitter_min_views: 2000,
+    twitter_filter_mode: 'standard',
+    twitter_min_likes: 10,
+    twitter_min_retweets: 5,
+    twitter_min_views: 500,
+    twitter_min_followers: 100,
+    twitter_exclude_replies: 'true',
   });
   const [keywords, setKeywords] = useState([]);
   const [kwInput, setKwInput] = useState('');
@@ -402,7 +404,7 @@ export default function SettingsPage() {
                   className="mt-5 pt-5 border-t border-white/10"
                 >
                   <p className="text-sm font-medium text-foreground mb-3">自定义阈值</p>
-                  <div className="grid grid-cols-3 gap-4 max-w-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-2xl">
                     <div className="space-y-1.5">
                       <label className="text-xs text-muted-foreground block">点赞≥</label>
                       <Input
@@ -447,6 +449,37 @@ export default function SettingsPage() {
                         }
                         className="bg-white/5 border-white/10"
                       />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground block">作者粉丝≥</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={s.twitter_min_followers ?? 100}
+                        onChange={(e) =>
+                          setS((p) => ({
+                            ...p,
+                            twitter_min_followers: parseInt(e.target.value, 10) || 0,
+                          }))
+                        }
+                        className="bg-white/5 border-white/10"
+                      />
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2 lg:col-span-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={s.twitter_exclude_replies !== 'false'}
+                          onChange={(e) =>
+                            setS((p) => ({
+                              ...p,
+                              twitter_exclude_replies: e.target.checked ? 'true' : 'false',
+                            }))
+                          }
+                          className="rounded border-white/20 bg-white/5"
+                        />
+                        <span className="text-sm text-foreground">排除回复推文（仅保留原创）</span>
+                      </label>
                     </div>
                   </div>
                 </motion.div>

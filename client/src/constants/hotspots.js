@@ -7,8 +7,9 @@ export const SORT_OPTIONS = [
   { value: 'popularity', label: '热度综合' },
 ];
 
-// 重要程度
+// 重要程度（筛选）
 export const IMPORTANCE_OPTIONS = [
+  { value: '', label: '全部' },
   { value: 'urgent', label: '紧急' },
   { value: 'high', label: '高' },
   { value: 'medium', label: '中' },
@@ -43,12 +44,11 @@ export const SOURCE_OPTIONS = [
   { value: 'devnews', label: '开发者新闻' },
 ];
 
-// 时间范围
+// 时间范围（抓取与筛选均限定 7 天内）
 export const TIME_RANGE_OPTIONS = [
   { value: '', label: '全部时间' },
   { value: '1h', label: '最近 1 小时' },
   { value: 'today', label: '今天' },
+  { value: '3d', label: '近 3 天' },
   { value: '7d', label: '近 7 天' },
-  { value: '30d', label: '近 30 天' },
-  { value: 'custom', label: '自定义范围' },
 ];

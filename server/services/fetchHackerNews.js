@@ -6,16 +6,18 @@
 
 const HN_API = 'https://hn.algolia.com/api/v1';
 const MIN_POINTS = 10;
+const DAYS = 7;
 
 export async function fetchHackerNews(keywords = []) {
   const items = [];
   const queries = keywords.length
     ? keywords
     : ['AI', 'machine learning', 'GPT', 'LLM', 'Claude', 'open source'];
+  const createdAtMin = Math.floor((Date.now() - DAYS * 24 * 60 * 60 * 1000) / 1000);
 
   for (const q of queries.slice(0, 5)) {
     try {
-      const url = `${HN_API}/search?query=${encodeURIComponent(q)}&tags=story&numericFilters=points>${MIN_POINTS}&hitsPerPage=15`;
+      const url = `${HN_API}/search?query=${encodeURIComponent(q)}&tags=story&numericFilters=points>${MIN_POINTS},created_at_i>${createdAtMin}&hitsPerPage=15`;
       const res = await fetch(url, {
         headers: { 'User-Agent': 'Trendly/1.0' },
       });

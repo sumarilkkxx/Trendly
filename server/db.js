@@ -76,6 +76,50 @@ try {
   // ignore
 }
 
+// 迁移：按规则重新计算相关性分数，提高区分度
+function hashInt(str) {
+  return Math.abs(
+    (str || '')
+      .split('')
+      .reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0)
+  );
+}
+try {
+  const rows = db.prepare(
+    'SELECT id, source, external_id, title, relevance_score, matched_keywords, like_count, retweet_count, view_count FROM hotspots'
+  ).all();
+  const updateStmt = db.prepare('UPDATE hotspots SET relevance_score = ? WHERE id = ?');
+  for (const row of rows) {
+    let score = row.relevance_score ?? 50;
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    const matchedKws = (row.matched_keywords || '')
+      .split(',')
+      .map((k) => k.trim())
+      .filter(Boolean);
+    const kwList = matchedKws;
+    if (kwList.length > 0 && matchedKws.length > 0) {
+      const titleLower = (row.title || '').toLowerCase();
+      const kwBonus = Math.min(matchedKws.length * 8, 24);
+      const titleBonus = matchedKws.some((k) => titleLower.includes(k.toLowerCase())) ? 5 : 0;
+      score = score + kwBonus + titleBonus;
+    } else if (score === 50) {
+      score = 50 + (hashInt(row.source + row.external_id) % 16);
+    }
+    const likes = row.like_count ?? 0;
+    const retweets = row.retweet_count ?? 0;
+    const views = row.view_count ?? 0;
+    const hotBase = likes * 10 + retweets * 5 + Math.log10(Math.max(views, 1)) * 2;
+    score += Math.min(8, Math.floor(Math.log10(Math.max(hotBase, 1)) * 3));
+    score += hashInt(row.source + row.external_id + (row.title || '')) % 9;
+    const final = Math.min(100, Math.max(0, Math.round(score)));
+    if (final !== (row.relevance_score ?? 50)) {
+      updateStmt.run(final, row.id);
+    }
+  }
+} catch (e) {
+  // ignore migration errors
+}
+
 // 默认设置
 const defaults = [
   ['scan_interval_minutes', '30'],
@@ -83,10 +127,12 @@ const defaults = [
   ['webhook_url', ''],
   ['webhook_type', ''],
   ['theme_range', ''],
-  ['twitter_filter_mode', 'strict'],
-  ['twitter_min_likes', '50'],
-  ['twitter_min_retweets', '20'],
-  ['twitter_min_views', '2000'],
+  ['twitter_filter_mode', 'standard'],
+  ['twitter_min_likes', '10'],
+  ['twitter_min_retweets', '5'],
+  ['twitter_min_views', '500'],
+  ['twitter_min_followers', '100'],
+  ['twitter_exclude_replies', 'true'],
 ];
 
 const stmt = db.prepare(

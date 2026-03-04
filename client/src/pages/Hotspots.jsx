@@ -1,19 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
+import * as Popover from '@radix-ui/react-popover';
 import { PageMotion } from '@/components/ui/PageMotion';
 import { api } from '@/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DatePicker } from '@/components/ui/DatePicker';
 import { HoverEffect } from '@/components/ui/HoverEffect';
 import { AuroraBackground } from '@/components/ui/AuroraBackground';
-import { Search, Filter, Trash2 } from 'lucide-react';
+import { Search, Filter, Trash2, ArrowUpDown, ChevronDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   SORT_OPTIONS,
   SOURCE_OPTIONS,
   TIME_RANGE_OPTIONS,
-  IMPORTANCE_OPTIONS,
   AUTHENTICITY_OPTIONS,
+  IMPORTANCE_OPTIONS,
   RELEVANCE_RANGE_OPTIONS,
 } from '@/constants/hotspots';
 
@@ -24,10 +25,8 @@ export default function Hotspots() {
   const [sort, setSort] = useState('latest_discovery');
   const [sources, setSources] = useState([]);
   const [timeRange, setTimeRange] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [importance, setImportance] = useState([]);
   const [authenticity, setAuthenticity] = useState('');
+  const [importance, setImportance] = useState('');
   const [relevanceRange, setRelevanceRange] = useState('');
   const [keywords, setKeywords] = useState([]);
 
@@ -40,19 +39,13 @@ export default function Hotspots() {
 
   const load = useCallback(async (page = 1, signal) => {
     try {
-      const params = { page, limit: 20, sort };
+      const params = { page, limit: 21, sort };
       if (search.trim()) params.search = search.trim();
       if (keyword.trim()) params.keyword = keyword.trim();
       if (sources.length) params.sources = sources.join(',');
-      if (timeRange) {
-        params.timeRange = timeRange;
-        if (timeRange === 'custom') {
-          if (dateFrom) params.dateFrom = dateFrom;
-          if (dateTo) params.dateTo = dateTo;
-        }
-      }
-      if (importance.length) params.importance = importance.join(',');
+      if (timeRange) params.timeRange = timeRange;
       if (authenticity) params.authenticity = authenticity;
+      if (importance) params.importance = importance;
       const rangeOpt = RELEVANCE_RANGE_OPTIONS.find((r) => r.value === relevanceRange);
       if (rangeOpt?.min != null) params.relevanceMin = rangeOpt.min;
       if (rangeOpt?.max != null) params.relevanceMax = rangeOpt.max;
@@ -63,7 +56,7 @@ export default function Hotspots() {
       if (e?.name === 'AbortError' || signal?.aborted) return;
       alert(e.message);
     }
-  }, [sort, sources, timeRange, dateFrom, dateTo, search, keyword, importance, authenticity, relevanceRange]);
+  }, [sort, sources, timeRange, search, keyword, authenticity, importance, relevanceRange]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -73,9 +66,6 @@ export default function Hotspots() {
 
   const toggleSource = (v) => {
     setSources((prev) => (prev.includes(v) ? prev.filter((s) => s !== v) : [...prev, v]));
-  };
-  const toggleImportance = (v) => {
-    setImportance((prev) => (prev.includes(v) ? prev.filter((s) => s !== v) : [...prev, v]));
   };
 
   const items = (data.items ?? []).map((h) => ({
@@ -123,75 +113,122 @@ export default function Hotspots() {
               <p className="mt-1 text-muted-foreground text-sm">按来源、关键词、时间筛选，支持多种排序</p>
             </div>
 
-            <Card className="border-white/10">
+            <Card className="border-white/10 bg-white/[0.02] shadow-[0_1px_0_0_rgba(255,255,255,0.04)]">
               <CardContent className="pt-6 pb-6">
-                {/* 顶部：搜索、排序、操作 */}
+                {/* 顶部：搜索、操作 */}
                 <div className="flex flex-wrap gap-4 items-center justify-between mb-6">
-                  <div className="flex flex-wrap gap-4 flex-1 min-w-0">
-                    <div className="relative flex-1 min-w-[200px]">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-foreground/70" />
-                      <Input
-                        type="search"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="搜索标题/摘要"
-                        className="pl-9 h-10 bg-white/5 border-white/10 text-foreground text-base placeholder:text-foreground/50 focus-visible:ring-primary/50"
-                        aria-label="搜索标题或摘要"
-                      />
-                    </div>
-                    <div className="min-w-[140px]">
-                      <label className="sr-only">排序方式</label>
-                      <select
-                        value={sort}
-                        onChange={(e) => setSort(e.target.value)}
-                        className="w-full h-10 pl-3 pr-9 rounded-lg bg-white/5 border border-white/10 text-foreground text-base focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer"
-                        aria-label="排序方式"
-                      >
-                        {SORT_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                    </div>
+                  <div className="relative flex-1 min-w-[220px] max-w-md">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-foreground/55 pointer-events-none" />
+                    <Input
+                      type="search"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="搜索标题/摘要"
+                      className="hotspot-search h-11 text-[15px] min-h-[44px]"
+                      aria-label="搜索标题或摘要"
+                    />
                   </div>
                   {data.total > 0 && (
-                    <Button variant="destructive" className="whitespace-nowrap shrink-0" onClick={handleClearAll}>
+                    <Button
+                      variant="destructive"
+                      className="min-h-[44px] px-5 py-2.5 whitespace-nowrap shrink-0 transition-all duration-200 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)]"
+                      onClick={handleClearAll}
+                    >
                       <Trash2 className="size-4" />
                       一键删除全部热点
                     </Button>
                   )}
                 </div>
 
-                {/* 筛选分组：数据来源 */}
-                <div className="mb-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Filter className="size-4 text-primary shrink-0" />
-                    <span className="text-sm font-medium text-foreground">数据来源</span>
+                {/* 排序与数据来源（下拉框） */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-medium text-foreground/90 mb-2 tracking-tight">
+                      <ArrowUpDown className="size-4 text-primary/90 shrink-0" />
+                      排序
+                    </label>
+                    <select
+                      value={sort}
+                      onChange={(e) => setSort(e.target.value)}
+                      className="hotspot-form-control w-full"
+                      aria-label="排序方式"
+                    >
+                      {SORT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {SOURCE_OPTIONS.map((o) => (
-                      <button
-                        key={o.value}
-                        type="button"
-                        onClick={() => toggleSource(o.value)}
-                        className={sources.includes(o.value) ? 'px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer border bg-primary/20 text-primary border-primary/40' : 'px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer border bg-white/5 text-foreground/90 border-white/10 hover:bg-white/[0.08] hover:border-white/20'}
-                        aria-pressed={sources.includes(o.value)}
-                        aria-label={`筛选来源 ${o.label}`}
-                      >
-                        {o.label}
-                      </button>
-                    ))}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-medium text-foreground/90 mb-2 tracking-tight">
+                      <Filter className="size-4 text-primary/90 shrink-0" />
+                      数据来源
+                    </label>
+                    <Popover.Root>
+                      <Popover.Trigger asChild>
+                        <button
+                          type="button"
+                          className="hotspot-select-trigger text-[15px]"
+                          aria-label="选择数据来源"
+                        >
+                          <span
+                            className={cn(
+                              'min-w-0 flex-1 truncate text-left',
+                              sources.length ? 'text-foreground' : 'text-foreground/50'
+                            )}
+                            title={sources.length && sources.length < SOURCE_OPTIONS.length
+                              ? SOURCE_OPTIONS.filter((o) => sources.includes(o.value)).map((o) => o.label).join('、')
+                              : undefined
+                            }
+                          >
+                            {sources.length === 0
+                              ? '全部来源'
+                              : sources.length === SOURCE_OPTIONS.length
+                                ? '全部'
+                                : SOURCE_OPTIONS.filter((o) => sources.includes(o.value)).map((o) => o.label).join('、')}
+                          </span>
+                          <ChevronDown className="size-4 shrink-0 text-foreground/55 transition-transform duration-200" />
+                        </button>
+                      </Popover.Trigger>
+                      <Popover.Portal>
+                        <Popover.Content
+                          align="start"
+                          sideOffset={6}
+                          className="z-50 w-[var(--radix-popover-trigger-width)] max-h-[280px] overflow-y-auto hotspot-popover-content outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+                        >
+                          {SOURCE_OPTIONS.map((o) => {
+                            const checked = sources.includes(o.value);
+                            return (
+                              <button
+                                key={o.value}
+                                type="button"
+                                onClick={() => toggleSource(o.value)}
+                                className={cn(
+                                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-all duration-150 min-h-[40px]',
+                                  checked ? 'bg-primary/15 text-primary' : 'text-foreground/90 hover:bg-white/[0.06]'
+                                )}
+                              >
+                                <span className={cn('flex size-4 shrink-0 items-center justify-center rounded border transition-colors duration-150', checked ? 'border-primary bg-primary' : 'border-white/25')}>
+                                  {checked && <Check className="size-2.5 text-white" strokeWidth={3} />}
+                                </span>
+                                {o.label}
+                              </button>
+                            );
+                          })}
+                        </Popover.Content>
+                      </Popover.Portal>
+                    </Popover.Root>
                   </div>
                 </div>
 
                 {/* 筛选分组：关键词与时间 */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">关联关键词</label>
+                    <label className="block text-sm font-medium text-foreground/90 mb-2 tracking-tight">关联关键词</label>
                     {keywords.length > 0 ? (
                       <select
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
-                        className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-foreground text-base focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer"
+                        className="hotspot-form-control w-full"
                         aria-label="按监控关键词筛选"
                       >
                         <option value="">全部</option>
@@ -205,16 +242,16 @@ export default function Hotspots() {
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
                         placeholder="输入关键词"
-                        className="w-full h-10 bg-white/5 border-white/10 text-foreground text-base"
+                        className="hotspot-form-control w-full h-11 min-h-[44px] rounded-xl"
                       />
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">时间范围</label>
+                    <label className="block text-sm font-medium text-foreground/90 mb-2 tracking-tight">时间范围</label>
                     <select
                       value={timeRange}
                       onChange={(e) => setTimeRange(e.target.value)}
-                      className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-foreground text-base focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer"
+                      className="hotspot-form-control w-full"
                       aria-label="时间范围"
                     >
                       {TIME_RANGE_OPTIONS.map((o) => (
@@ -222,60 +259,16 @@ export default function Hotspots() {
                       ))}
                     </select>
                   </div>
-                  {timeRange === 'custom' && (
-                    <div className="sm:col-span-2 lg:col-span-4">
-                      <label className="block text-sm font-medium text-foreground mb-2">日期范围</label>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                        <div className="flex-1 min-w-0">
-                          <DatePicker
-                            value={dateFrom}
-                            onChange={(v) => {
-                              setDateFrom(v);
-                              if (dateTo && v && dateTo < v) setDateTo(v);
-                            }}
-                            placeholder="开始日期"
-                            maxDate={new Date().toISOString().slice(0, 10)}
-                          />
-                        </div>
-                        <span className="hidden sm:inline text-foreground/70 text-sm shrink-0">至</span>
-                        <div className="flex-1 min-w-0">
-                          <DatePicker
-                            value={dateTo}
-                            onChange={setDateTo}
-                            placeholder="结束日期"
-                            maxDate={new Date().toISOString().slice(0, 10)}
-                            minDate={dateFrom || undefined}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* 筛选分组：质量筛选 */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-5 border-t border-white/[0.08]">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">重要程度</label>
-                    <div className="flex flex-wrap gap-2">
-                      {IMPORTANCE_OPTIONS.map((o) => (
-                        <button
-                          key={o.value}
-                          type="button"
-                          onClick={() => toggleImportance(o.value)}
-                          className={importance.includes(o.value) ? 'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer border bg-primary/20 text-primary border-primary/40' : 'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer border bg-white/5 text-foreground/90 border-white/10 hover:bg-white/[0.08]'}
-                          aria-pressed={importance.includes(o.value)}
-                        >
-                          {o.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">真实性</label>
+                    <label className="block text-sm font-medium text-foreground/90 mb-2 tracking-tight">真实性</label>
                     <select
                       value={authenticity}
                       onChange={(e) => setAuthenticity(e.target.value)}
-                      className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-foreground text-base focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer"
+                      className="hotspot-form-control w-full"
                       aria-label="真实性"
                     >
                       {AUTHENTICITY_OPTIONS.map((o) => (
@@ -284,11 +277,24 @@ export default function Hotspots() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">相关性</label>
+                    <label className="block text-sm font-medium text-foreground/90 mb-2 tracking-tight">重要程度</label>
+                    <select
+                      value={importance}
+                      onChange={(e) => setImportance(e.target.value)}
+                      className="hotspot-form-control w-full"
+                      aria-label="重要程度"
+                    >
+                      {IMPORTANCE_OPTIONS.map((o) => (
+                        <option key={o.value || 'all'} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground/90 mb-2 tracking-tight">相关性</label>
                     <select
                       value={relevanceRange}
                       onChange={(e) => setRelevanceRange(e.target.value)}
-                      className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-foreground text-base focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer"
+                      className="hotspot-form-control w-full"
                       aria-label="相关性分数区间"
                     >
                       {RELEVANCE_RANGE_OPTIONS.map((o) => (

@@ -27,8 +27,8 @@ function buildSourceConditions(sourcesParam) {
   return { where: ' AND (' + conditions.join(' OR ') + ')', params };
 }
 
-// 时间范围：1h | today | 7d | 30d | custom（需 dateFrom, dateTo）
-function buildTimeConditions(timeRange, dateFrom, dateTo) {
+// 时间范围：1h | today | 3d | 7d（抓取与筛选均限定 7 天内）
+function buildTimeConditions(timeRange) {
   if (!timeRange) return { where: '', params: [] };
   const now = new Date();
   let start;
@@ -39,25 +39,17 @@ function buildTimeConditions(timeRange, dateFrom, dateTo) {
     case 'today':
       start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       break;
+    case '3d':
+      start = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      break;
     case '7d':
       start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      break;
-    case '30d':
-      start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      break;
-    case 'custom':
-      if (dateFrom) start = new Date(dateFrom);
-      else return { where: '', params: [] };
       break;
     default:
       return { where: '', params: [] };
   }
-  let end = timeRange === 'custom' && dateTo ? new Date(dateTo) : now;
-  if (timeRange === 'custom' && dateTo) {
-    end.setHours(23, 59, 59, 999);
-  }
   const startStr = start.toISOString().slice(0, 19).replace('T', ' ');
-  const endStr = end.toISOString().slice(0, 19).replace('T', ' ');
+  const endStr = now.toISOString().slice(0, 19).replace('T', ' ');
   return {
     where: " AND COALESCE(published_at, created_at) >= ? AND COALESCE(published_at, created_at) <= ?",
     params: [startStr, endStr],
@@ -70,8 +62,10 @@ function buildOrderBy(sort) {
     case 'latest_published':
       return 'ORDER BY COALESCE(published_at, created_at) DESC, id DESC';
     case 'popularity':
+      // 热度公式（参考 yupi-hot-monitor）：点赞权重最高，转发次之，浏览用 log10 对数缩放
       return `ORDER BY (
-        COALESCE(like_count, 0) * 2 + COALESCE(retweet_count, 0) * 3 + COALESCE(view_count, 0) * 0.001
+        COALESCE(like_count, 0) * 10 + COALESCE(retweet_count, 0) * 5
+        + (log10(MAX(COALESCE(view_count, 0), 1)) * 2)
       ) DESC, id DESC`;
     case 'importance':
       return `ORDER BY CASE COALESCE(importance, 'medium')
@@ -95,10 +89,8 @@ router.get('/', (req, res) => {
       keyword,
       sort = 'latest_discovery',
       timeRange,
-      dateFrom,
-      dateTo,
-      importance,
       authenticity,
+      importance,
       relevanceMin,
       relevanceMax,
     } = req.query;
@@ -125,21 +117,17 @@ router.get('/', (req, res) => {
       params.push(`%${keyword.trim()}%`);
     }
 
-    const timeCond = buildTimeConditions(timeRange, dateFrom, dateTo);
+    const timeCond = buildTimeConditions(timeRange);
     where += timeCond.where;
     params.push(...timeCond.params);
 
-    if (importance && typeof importance === 'string') {
-      const levels = importance.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-      const valid = ['urgent', 'high', 'medium', 'low'].filter((l) => levels.includes(l));
-      if (valid.length) {
-        where += ` AND importance IN (${valid.map(() => '?').join(',')})`;
-        params.push(...valid);
-      }
-    }
     if (authenticity && ['verified', 'suspected_false'].includes(authenticity)) {
       where += ' AND authenticity = ?';
       params.push(authenticity);
+    }
+    if (importance && ['urgent', 'high', 'medium', 'low'].includes(importance)) {
+      where += ' AND importance = ?';
+      params.push(importance);
     }
     const relMin = parseInt(relevanceMin, 10);
     const relMax = parseInt(relevanceMax, 10);
@@ -162,7 +150,13 @@ router.get('/', (req, res) => {
       `SELECT * FROM hotspots WHERE 1=1 ${where} ${orderBy} LIMIT ? OFFSET ?`
     );
     const rows = listStmt.all(...params, limitVal, offset);
-    res.json({ items: rows, total, page: parseInt(page, 10), limit: parseInt(limit, 10) });
+    res.json({
+      items: rows,
+      total,
+      page: parseInt(page, 10),
+      limit: limitVal,
+      totalPages: Math.ceil(total / limitVal),
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

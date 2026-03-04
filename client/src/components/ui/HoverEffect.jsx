@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Trash2, ExternalLink } from 'lucide-react';
+import { Trash2, ExternalLink, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, sanitizeText } from '@/lib/utils';
 
 function formatSource(source) {
   if (!source) return '未知';
@@ -22,6 +22,45 @@ function formatNumber(n) {
   if (n == null || n === 0) return null;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(n);
+}
+
+// 热度值（与后端排序公式一致：like*10 + retweet*5 + log10(max(view,1))*2）
+function calcHotScore(item) {
+  const likes = item.like_count ?? item.likeCount ?? 0;
+  const retweets = item.retweet_count ?? item.retweetCount ?? 0;
+  const views = item.view_count ?? item.viewCount ?? 0;
+  if (likes === 0 && retweets === 0 && views === 0) return null;
+  const score = likes * 10 + retweets * 5 + Math.log10(Math.max(views, 1)) * 2;
+  return Math.round(score);
+}
+
+function HotScoreDisplay({ item }) {
+  const score = calcHotScore(item);
+  if (score == null || score <= 0) return null;
+  const str = score >= 1000 ? `${(score / 1000).toFixed(1)}k` : String(score);
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] text-amber-400/90 shrink-0" title="热度综合分（点赞×10 + 转发×5 + 浏览对数×2）">
+      <Flame className="size-3" />
+      {str}
+    </span>
+  );
+}
+
+// 重要程度标签
+function ImportanceBadge({ level }) {
+  if (!level) return null;
+  const config = {
+    urgent: { label: '紧急', className: 'border-rose-500/50 text-rose-400 bg-rose-500/10' },
+    high: { label: '高', className: 'border-amber-500/50 text-amber-400 bg-amber-500/10' },
+    medium: { label: '中', className: 'border-primary/40 text-primary/90 bg-primary/10' },
+    low: { label: '低', className: 'border-white/20 text-muted-foreground bg-white/5' },
+  };
+  const { label, className } = config[level] || { label: level, className: 'border-white/20 text-muted-foreground bg-white/5' };
+  return (
+    <span className={cn('text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0', className)} title={`重要程度：${label}`}>
+      {label}
+    </span>
+  );
 }
 
 // 相关性：0-100 显示百分比，1-5 显示星级
@@ -51,18 +90,6 @@ function getDisplaySummary(title, summary) {
   const s = summary.trim().toLowerCase();
   if (s.startsWith(t) || t.startsWith(s) || s.length < 20) return null;
   return summary.trim();
-}
-
-const IMPORTANCE_LABELS = { urgent: '紧急', high: '高', medium: '中', low: '低' };
-function ImportanceBadge({ level }) {
-  if (!level || !IMPORTANCE_LABELS[level]) return null;
-  const urgent = level === 'urgent' ? 'border-amber-500/50 text-amber-400' : '';
-  const high = level === 'high' ? 'border-primary/50 text-primary' : '';
-  return (
-    <span className={cn('text-[10px] px-1 py-0.5 rounded border shrink-0', urgent || high || 'border-white/20 text-muted-foreground')}>
-      {IMPORTANCE_LABELS[level]}
-    </span>
-  );
 }
 
 export function HoverEffect({ items, className, onDeleteItem }) {
@@ -118,7 +145,7 @@ export function HoverEffect({ items, className, onDeleteItem }) {
             >
               <div
                 className={cn(
-                  'group relative overflow-hidden rounded-xl border h-full flex flex-col',
+                  'group relative overflow-hidden rounded-xl border h-full flex flex-col min-h-0',
                   'transition-all duration-300 cursor-pointer',
                   'border-white/10 bg-white/[0.02]',
                   isHovered && 'border-primary/40 shadow-[0_0_24px_rgba(0,212,170,0.12)] bg-white/[0.04]'
@@ -133,10 +160,10 @@ export function HoverEffect({ items, className, onDeleteItem }) {
                     }}
                   />
                 )}
-                <div className="relative flex flex-col flex-1 p-5">
+                <div className="relative flex flex-col flex-1 p-5 min-w-0">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold leading-snug line-clamp-2 text-foreground flex-1 min-w-0 text-[15px]">
-                      {item.title}
+                    <h3 className="font-semibold leading-snug text-foreground flex-1 min-w-0 text-[15px]">
+                      {sanitizeText(item.title)}
                     </h3>
                     {onDeleteItem && (
                       <Button
@@ -156,41 +183,53 @@ export function HoverEffect({ items, className, onDeleteItem }) {
                   </div>
                   {(() => {
                     const summary = getDisplaySummary(item.title, item.description);
-                    return summary ? (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-2 leading-relaxed">
-                        {summary}
+                    const cleanSummary = summary ? sanitizeText(summary) : '';
+                    return cleanSummary ? (
+                      <p className="text-sm text-muted-foreground mt-2 leading-relaxed whitespace-pre-wrap break-words">
+                        {cleanSummary}
                       </p>
                     ) : null;
                   })()}
-                  <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
-                    <Badge variant="outline" className="text-[11px] px-1.5 py-0.5 border-white/20 bg-white/5 font-normal text-foreground shrink-0">
-                      {formatSource(item.source)}
-                    </Badge>
-                    <ImportanceBadge level={item.importance} />
-                    {item.authenticity === 'suspected_false' && (
-                      <span className="text-[10px] px-1 py-0.5 rounded border border-amber-500/40 text-amber-400 shrink-0">待核实</span>
-                    )}
-                    {keywords.slice(0, 2).map((kw) => (
-                      <Badge
-                        key={kw}
-                        variant="secondary"
-                        className="text-[11px] px-1.5 py-0.5 border-white/10 bg-white/5 font-normal shrink-0"
-                      >
-                        {kw}
-                      </Badge>
-                    ))}
-                    {keywords.length > 2 && (
-                      <span className="text-muted-foreground shrink-0">+{keywords.length - 2}</span>
-                    )}
+                  <div className="mt-4 pt-3 border-t border-white/10 flex flex-col gap-2">
+                    {/* 第一行：左=来源+关键词，右=重要程度+热度 */}
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 text-xs">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0">
+                        <Badge variant="outline" className="text-[11px] px-1.5 py-0.5 border-white/20 bg-white/5 font-normal text-foreground shrink-0">
+                          {formatSource(item.source)}
+                        </Badge>
+                        {item.authenticity === 'suspected_false' && (
+                          <span className="text-[10px] px-1 py-0.5 rounded border border-amber-500/40 text-amber-400 shrink-0">待核实</span>
+                        )}
+                        {keywords.slice(0, 3).map((kw) => (
+                          <Badge
+                            key={kw}
+                            variant="secondary"
+                            className="text-[11px] px-1.5 py-0.5 border-white/10 bg-white/5 font-normal shrink-0"
+                          >
+                            {sanitizeText(kw)}
+                          </Badge>
+                        ))}
+                        {keywords.length > 3 && (
+                          <span className="text-muted-foreground shrink-0">+{keywords.length - 3}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 shrink-0">
+                        <ImportanceBadge level={item.importance} />
+                        <HotScoreDisplay item={item} />
+                      </div>
+                    </div>
+                    {/* 第二行：互动数据（左，超出省略）+ 相关性（右，固定） */}
                     {(popularityText || (item.relevance_score ?? item.relevance) != null) && (
-                      <span className="ml-auto inline-flex items-center gap-2 shrink-0">
-                        {popularityText && (
-                          <span className="text-muted-foreground truncate max-w-[100px]" title={popularityText}>
+                      <div className="flex items-center justify-between gap-3 text-xs min-w-0 min-h-[1.25rem]">
+                        {popularityText ? (
+                          <span className="text-muted-foreground truncate min-w-0" title={popularityText}>
                             {popularityText}
                           </span>
+                        ) : (
+                          <span />
                         )}
                         <RelevanceDisplay score={item.relevance_score ?? item.relevance} />
-                      </span>
+                      </div>
                     )}
                   </div>
                   <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -202,6 +241,11 @@ export function HoverEffect({ items, className, onDeleteItem }) {
           </motion.div>
         );
       })}
+      {/* 占位符：xl 下 3 列时填满最后一排，保持网格整齐 */}
+      {items.length > 0 &&
+        Array.from({ length: (3 - (items.length % 3)) % 3 }).map((_, i) => (
+          <div key={`grid-placeholder-${i}`} aria-hidden="true" className="min-w-0 hidden xl:block" />
+        ))}
     </div>
   );
 }

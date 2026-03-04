@@ -8,3 +8,5 @@ client/dist/
 MASTER.md
 .cursor
 design-system
+*.log
+docs

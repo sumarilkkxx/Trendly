@@ -7,7 +7,8 @@ export async function fetchTwitter(keywords = [], filterConfig) {
 
   const config = filterConfig || getTwitterFilterConfig({});
   const terms = keywords.slice(0, 3).map((k) => `"${k}"`).join(' OR ');
-  const query = terms || 'AI OR GPT';
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const query = `${terms || 'AI OR GPT'} since:${since}`;
 
   const items = [];
   let cursor = '';
