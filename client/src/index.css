@@ -41,6 +41,30 @@ body {
   @apply outline-none ring-2 ring-cyber-accent/50 ring-offset-2 ring-offset-background;
 }
 
+/* 下拉选项清晰度：深色背景下选项文字需足够对比度 */
+select option {
+  background: hsl(222 40% 12%);
+  color: hsl(210 40% 96%);
+  padding: 0.5rem;
+}
+
+/* react-day-picker 深色主题 */
+.rdp-dark {
+  --rdp-accent-color: hsl(174 100% 42%);
+  --rdp-accent-background-color: hsl(174 100% 42% / 0.2);
+  --rdp-today-color: hsl(174 100% 42%);
+}
+.rdp-dark .rdp-day_button {
+  color: hsl(210 40% 96%);
+}
+.rdp-dark .rdp-weekday {
+  color: hsl(210 40% 96% / 0.7);
+}
+.rdp-dark .rdp-month_caption,
+.rdp-dark .rdp-caption_label {
+  color: hsl(210 40% 96%);
+}
+
 @layer base {
   /* Dark only: 深色底 + 青/蓝霓虹 - 前沿热点工具风格 */
   :root {

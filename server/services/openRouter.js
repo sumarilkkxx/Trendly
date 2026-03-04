@@ -2,18 +2,26 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export async function filterAndSummarize(item, keywords = []) {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return { keep: true, summary: item.summary || item.title, relevance: 3 };
+  const fallback = {
+    keep: true,
+    summary: item.summary || item.title,
+    relevance: 50,
+    importance: 'medium',
+    authenticity: 'verified',
+  };
+  if (!apiKey) return fallback;
 
   const text = [item.title, item.summary, item.rawContent].filter(Boolean).join('\n').slice(0, 1500);
   const kwHint = keywords.length ? ` 用户关注关键词：${keywords.join('、')}` : '';
 
-  const systemPrompt = `你是一个 AI 内容审核助手。判断以下内容是否为：
-1. 真实、有价值的 AI/技术相关资讯（保留）
-2. 营销、假冒、低质、无关内容（过滤）
+  const systemPrompt = `你是一个 AI 内容审核助手。判断以下内容：
+1. 是否保留：真实、有价值的 AI/技术相关资讯保留，营销、假冒、低质、无关内容过滤
+2. 真实性：verified（AI 验证为真实）或 suspected_false（疑似虚假/需警惕）
+3. 重要程度：urgent（紧急）> high（高）> medium（中）> low（低）
+4. 相关性：0-100 的整数，100=非常相关，0=几乎无关
 
-同时评估与 AI/技术主题的相关性，1-5 分：5=非常相关，4=相关，3=一般，2=弱相关，1=几乎无关。
-
-仅回复 JSON：{"keep": true/false, "summary": "一句话摘要（若保留）", "relevance": 1-5}`;
+仅回复 JSON：
+{"keep": true/false, "summary": "一句话摘要", "relevance": 0-100, "importance": "urgent|high|medium|low", "authenticity": "verified|suspected_false"}`;
 
   const userPrompt = `内容来源：${item.source}\n标题：${item.title}\n\n正文片段：\n${text}\n${kwHint}\n\n请判断并回复 JSON。`;
 
@@ -30,7 +38,7 @@ export async function filterAndSummarize(item, keywords = []) {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        max_tokens: 200,
+        max_tokens: 250,
         temperature: 0.2,
         response_format: { type: 'json_object' },
       }),
@@ -38,18 +46,27 @@ export async function filterAndSummarize(item, keywords = []) {
 
     const data = await res.json();
     const content = data?.choices?.[0]?.message?.content;
-    if (!content) return { keep: true, summary: item.summary || item.title, relevance: 3 };
+    if (!content) return fallback;
 
     const parsed = JSON.parse(content);
-    const rel = parseInt(parsed.relevance, 10);
-    const relevance = rel >= 1 && rel <= 5 ? rel : 3;
+    let rel = parseInt(parsed.relevance, 10);
+    if (Number.isNaN(rel) || rel < 0 || rel > 100) rel = 50;
+    const importance = ['urgent', 'high', 'medium', 'low'].includes(parsed.importance)
+      ? parsed.importance
+      : 'medium';
+    const authenticity = ['verified', 'suspected_false'].includes(parsed.authenticity)
+      ? parsed.authenticity
+      : 'verified';
+
     return {
       keep: !!parsed.keep,
       summary: typeof parsed.summary === 'string' ? parsed.summary : (item.summary || item.title),
-      relevance,
+      relevance: rel,
+      importance,
+      authenticity,
     };
   } catch (e) {
     console.error('[OpenRouter]', e.message);
-    return { keep: true, summary: item.summary || item.title, relevance: 3 };
+    return fallback;
   }
 }

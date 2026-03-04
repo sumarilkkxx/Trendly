@@ -134,7 +134,7 @@ export default function SettingsPage() {
   return (
     <PageMotion className="space-y-10">
       <AuroraBackground>
-        <div>
+        <div className="mb-8">
           <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
             设置
           </h1>
@@ -143,7 +143,7 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <div className="space-y-8 max-w-4xl">
+        <div className="space-y-10 max-w-4xl">
           {/* 1. 关键词管理 */}
           <Card className="border-white/10">
             <CardHeader className="pb-4">
@@ -224,7 +224,7 @@ export default function SettingsPage() {
                 <Rss className="size-4 text-primary shrink-0" />
                 消息源
               </CardTitle>
-              <CardDescription>内置 Hugging Face · 可添加 Planet AI、twitrss 等 RSS</CardDescription>
+              <CardDescription>内置 Hugging Face、Hacker News、Google News、DuckDuckGo、TechCrunch 等 · 可添加 Planet AI、twitrss 等 RSS</CardDescription>
             </CardHeader>
             <CardContent className="pt-0 space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px_auto] gap-3">

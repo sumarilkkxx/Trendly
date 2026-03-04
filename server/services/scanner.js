@@ -2,6 +2,10 @@ import db from '../db.js';
 import { fetchHuggingFace, fetchCustomRss } from './fetchRss.js';
 import { fetchReddit } from './fetchReddit.js';
 import { fetchTwitter } from './fetchTwitter.js';
+import { fetchHackerNews } from './fetchHackerNews.js';
+import { fetchDevNews } from './fetchDevNews.js';
+import { fetchGoogleNews } from './fetchGoogleNews.js';
+import { fetchDuckDuckGo } from './fetchDuckDuckGo.js';
 import { getTwitterFilterConfig } from './twitterFilter.js';
 import { filterAndSummarize } from './openRouter.js';
 
@@ -31,20 +35,29 @@ export async function runScan() {
   const twitterFilterConfig = getTwitterFilterConfig(settings);
 
   const all = [];
-  const [hf, custom, reddit, twitter] = await Promise.all([
+  const fetchers = [
     fetchHuggingFace(),
     fetchCustomRss(),
     fetchReddit(),
     fetchTwitter(kwList, twitterFilterConfig),
-  ]);
+    fetchHackerNews(kwList),
+    fetchDevNews(),
+    fetchGoogleNews(kwList),
+    fetchDuckDuckGo(kwList).catch((e) => {
+      console.error('[DuckDuckGo]', e.message);
+      return [];
+    }),
+  ];
 
-  all.push(...hf, ...custom, ...reddit, ...twitter);
+  const results = await Promise.all(fetchers);
+  for (const r of results) all.push(...(r || []));
 
   const insertStmt = db.prepare(`
     INSERT OR IGNORE INTO hotspots (
       source, external_id, title, summary, url, raw_content, published_at,
-      like_count, retweet_count, view_count, relevance_score, matched_keywords
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      like_count, retweet_count, view_count, relevance_score, matched_keywords,
+      importance, authenticity
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   let newCount = 0;
@@ -54,13 +67,16 @@ export async function runScan() {
     if (kwList.length && !matchKeyword(text, kwList)) continue;
 
     const matchedKws = getMatchedKeywords(text, kwList);
-    const { keep, summary, relevance } = await filterAndSummarize(item, kwList);
+    const { keep, summary, relevance, importance, authenticity } = await filterAndSummarize(item, kwList);
     if (!keep) continue;
 
     const likes = item.likeCount ?? null;
     const retweets = item.retweetCount ?? null;
     const views = item.viewCount ?? null;
     const matchedKeywordsStr = matchedKws.length ? matchedKws.join(',') : '';
+    const relevanceVal = relevance != null ? relevance : 50;
+    const importanceVal = importance || 'medium';
+    const authenticityVal = authenticity || 'verified';
 
     try {
       const result = insertStmt.run(
@@ -74,8 +90,10 @@ export async function runScan() {
         likes,
         retweets,
         views,
-        relevance ?? 3,
-        matchedKeywordsStr
+        relevanceVal,
+        matchedKeywordsStr,
+        importanceVal,
+        authenticityVal
       );
       if (result.changes > 0) newCount++;
     } catch (e) {

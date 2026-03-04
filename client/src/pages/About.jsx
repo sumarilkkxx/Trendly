@@ -7,7 +7,7 @@ export default function About() {
   return (
     <PageMotion className="space-y-6 max-w-2xl">
       <AuroraBackground>
-        <div>
+        <div className="mb-8">
           <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
             关于 Trendly
           </h1>
@@ -25,8 +25,9 @@ export default function About() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-muted-foreground text-sm leading-relaxed">
-              <strong className="text-foreground">Trendly</strong> 从 Hugging Face、Reddit、Twitter、自定义 RSS
-              等源拉取 AI 热点，经 OpenRouter 大模型过滤后，第一时间送达你。
+              <strong className="text-foreground">Trendly</strong> 从 Hugging Face、Reddit、Twitter、Hacker News、
+              Google News、DuckDuckGo、TechCrunch/The Verge 等开发者新闻、自定义 RSS 拉取 AI 热点，
+              经 OpenRouter 大模型过滤后，第一时间送达你。
             </p>
             <div>
               <h3 className="text-sm font-medium mb-2 text-foreground">环境变量</h3>

@@ -11,6 +11,10 @@ function formatSource(source) {
   if (source.startsWith('reddit:')) return source.replace('reddit:', 'Reddit ');
   if (source === 'huggingface') return 'Hugging Face';
   if (source.startsWith('rss:')) return source.replace('rss:', 'RSS ');
+  if (source === 'hackernews') return 'Hacker News';
+  if (source === 'googlenews') return 'Google News';
+  if (source === 'duckduckgo') return 'DuckDuckGo';
+  if (source.startsWith('devnews:')) return source.replace('devnews:', '');
   return source;
 }
 
@@ -20,12 +24,43 @@ function formatNumber(n) {
   return String(n);
 }
 
-function RelevanceStars({ score }) {
+// 相关性：0-100 显示百分比，1-5 显示星级
+function RelevanceDisplay({ score }) {
   if (score == null) return null;
-  const n = Math.min(5, Math.max(1, Math.round(score)));
+  const num = Number(score);
+  if (num >= 0 && num <= 100) {
+    const pct = Math.round(num);
+    return (
+      <span className="text-primary/90 text-xs tabular-nums" title={`相关性 ${pct}%`}>
+        {pct}%
+      </span>
+    );
+  }
+  const n = Math.min(5, Math.max(1, Math.round(num)));
   return (
     <span className="text-primary/90 text-xs" title={`相关性 ${n}/5`}>
       {'★'.repeat(n)}{'☆'.repeat(5 - n)}
+    </span>
+  );
+}
+
+// 标题与摘要去重：若摘要与标题高度相似则只显示标题
+function getDisplaySummary(title, summary) {
+  if (!summary?.trim()) return null;
+  const t = (title || '').trim().toLowerCase();
+  const s = summary.trim().toLowerCase();
+  if (s.startsWith(t) || t.startsWith(s) || s.length < 20) return null;
+  return summary.trim();
+}
+
+const IMPORTANCE_LABELS = { urgent: '紧急', high: '高', medium: '中', low: '低' };
+function ImportanceBadge({ level }) {
+  if (!level || !IMPORTANCE_LABELS[level]) return null;
+  const urgent = level === 'urgent' ? 'border-amber-500/50 text-amber-400' : '';
+  const high = level === 'high' ? 'border-primary/50 text-primary' : '';
+  return (
+    <span className={cn('text-[10px] px-1 py-0.5 rounded border shrink-0', urgent || high || 'border-white/20 text-muted-foreground')}>
+      {IMPORTANCE_LABELS[level]}
     </span>
   );
 }
@@ -35,7 +70,7 @@ export function HoverEffect({ items, className, onDeleteItem }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
   return (
-    <div className={cn('grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4', className)}>
+    <div className={cn('grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5', className)}>
       {items.map((item, i) => {
         const likes = item.like_count ?? item.likeCount;
         const retweets = item.retweet_count ?? item.retweetCount;
@@ -100,14 +135,14 @@ export function HoverEffect({ items, className, onDeleteItem }) {
                 )}
                 <div className="relative flex flex-col flex-1 p-5">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold leading-tight line-clamp-2 text-foreground flex-1 min-w-0">
+                    <h3 className="font-semibold leading-snug line-clamp-2 text-foreground flex-1 min-w-0 text-[15px]">
                       {item.title}
                     </h3>
                     {onDeleteItem && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive"
+                        className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-opacity duration-200"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -119,35 +154,46 @@ export function HoverEffect({ items, className, onDeleteItem }) {
                       </Button>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-3 mt-2 flex-1">
-                    {item.description}
-                  </p>
-                  <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-[3rem_1fr] gap-x-3 gap-y-1.5 text-xs w-full">
-                    <span className="text-muted-foreground shrink-0">来源：</span>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
-                      <span className="text-foreground">{formatSource(item.source)}</span>
-                      {keywords.slice(0, 3).map((kw) => (
-                        <Badge
-                          key={kw}
-                          variant="secondary"
-                          className="text-[11px] border-white/10 bg-white/5"
-                        >
-                          {kw}
-                        </Badge>
-                      ))}
-                      {keywords.length > 3 && (
-                        <span className="text-muted-foreground">+{keywords.length - 3}</span>
-                      )}
-                    </div>
-                    <span className="text-muted-foreground shrink-0">热度：</span>
-                    <div className="flex items-center gap-2 min-w-0">
-                      {popularityText && (
-                        <span className="text-muted-foreground truncate">{popularityText}</span>
-                      )}
-                      <RelevanceStars score={item.relevance_score ?? item.relevance} />
-                    </div>
+                  {(() => {
+                    const summary = getDisplaySummary(item.title, item.description);
+                    return summary ? (
+                      <p className="text-sm text-muted-foreground line-clamp-2 mt-2 leading-relaxed">
+                        {summary}
+                      </p>
+                    ) : null;
+                  })()}
+                  <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+                    <Badge variant="outline" className="text-[11px] px-1.5 py-0.5 border-white/20 bg-white/5 font-normal text-foreground shrink-0">
+                      {formatSource(item.source)}
+                    </Badge>
+                    <ImportanceBadge level={item.importance} />
+                    {item.authenticity === 'suspected_false' && (
+                      <span className="text-[10px] px-1 py-0.5 rounded border border-amber-500/40 text-amber-400 shrink-0">待核实</span>
+                    )}
+                    {keywords.slice(0, 2).map((kw) => (
+                      <Badge
+                        key={kw}
+                        variant="secondary"
+                        className="text-[11px] px-1.5 py-0.5 border-white/10 bg-white/5 font-normal shrink-0"
+                      >
+                        {kw}
+                      </Badge>
+                    ))}
+                    {keywords.length > 2 && (
+                      <span className="text-muted-foreground shrink-0">+{keywords.length - 2}</span>
+                    )}
+                    {(popularityText || (item.relevance_score ?? item.relevance) != null) && (
+                      <span className="ml-auto inline-flex items-center gap-2 shrink-0">
+                        {popularityText && (
+                          <span className="text-muted-foreground truncate max-w-[100px]" title={popularityText}>
+                            {popularityText}
+                          </span>
+                        )}
+                        <RelevanceDisplay score={item.relevance_score ?? item.relevance} />
+                      </span>
+                    )}
                   </div>
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <ExternalLink className="size-4 text-primary" />
                   </div>
                 </div>

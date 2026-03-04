@@ -1,44 +1,73 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '@/api';
 import { Button } from '@/components/ui/button';
 import { HoverEffect } from '@/components/ui/HoverEffect';
 import { PageMotion } from '@/components/ui/PageMotion';
 import { AuroraBackground } from '@/components/ui/AuroraBackground';
 import { BentoGrid, BentoGridItem } from '@/components/ui/BentoGrid';
-import { Flame, KeyRound, Rss, Zap } from 'lucide-react';
+import { Flame, KeyRound, Rss, Zap, ChevronRight } from 'lucide-react';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ keywords: 0, hotspots: 0, sources: 0 });
   const [hotspots, setHotspots] = useState([]);
   const [scanning, setScanning] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [kw, hp, src] = await Promise.all([
-          api.keywords.list(),
-          api.hotspots.list({ limit: 6 }),
-          api.sources.list(),
-        ]);
-        setStats({ keywords: kw.length, hotspots: hp.total ?? 0, sources: src.length });
-        setHotspots((hp.items ?? []).map((h) => ({ ...h, link: h.url, description: h.summary })));
-      } catch (e) {
-        console.error(e);
-      }
-    })();
+  const loadHotspots = useCallback(async (signal) => {
+    try {
+      const hp = await api.hotspots.list({ limit: 9, sort: 'latest_discovery' }, { signal });
+      if (signal?.aborted) return;
+      setHotspots((hp.items ?? []).map((h) => ({ ...h, link: h.url, description: h.summary })));
+    } catch (e) {
+      if (e?.name === 'AbortError' || signal?.aborted) return;
+      console.error(e);
+    }
   }, []);
+
+  const loadStats = async () => {
+    try {
+      const [kw, hp, src] = await Promise.all([
+        api.keywords.list(),
+        api.hotspots.list({ limit: 1 }),
+        api.sources.list(),
+      ]);
+      setStats({ keywords: kw.length, hotspots: hp.total ?? 0, sources: src.length });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    loadHotspots(ctrl.signal);
+    return () => ctrl.abort();
+  }, [loadHotspots]);
 
   const runScan = async () => {
     setScanning(true);
     try {
       await api.scan();
-      const hp = await api.hotspots.list({ limit: 6 });
-      setHotspots((hp.items ?? []).map((h) => ({ ...h, link: h.url, description: h.summary })));
-      setStats((s) => ({ ...s, hotspots: hp.total ?? 0 }));
+      await loadHotspots(undefined);
+      await loadStats();
     } catch (e) {
       alert(e.message);
     } finally {
       setScanning(false);
+    }
+  };
+
+  const handleDeleteItem = async (item) => {
+    if (!item?.id) return;
+    try {
+      await api.hotspots.remove(item.id);
+      setHotspots((prev) => prev.filter((h) => h.id !== item.id));
+      setStats((s) => ({ ...s, hotspots: Math.max(0, (s.hotspots ?? 0) - 1) }));
+    } catch (e) {
+      alert(e.message);
     }
   };
 
@@ -47,6 +76,11 @@ export default function Dashboard() {
     { label: '热点', value: stats.hotspots, icon: Flame },
     { label: 'RSS 源', value: stats.sources, icon: Rss },
   ];
+
+  const emptyStateStyle = {
+    backgroundImage: 'linear-gradient(rgba(0, 212, 170, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 212, 170, 0.03) 1px, transparent 1px)',
+    backgroundSize: '24px 24px',
+  };
 
   return (
     <PageMotion className="space-y-8">
@@ -79,24 +113,28 @@ export default function Dashboard() {
         </BentoGrid>
 
         <div>
-          <h2 className="font-display text-lg font-semibold mb-4 text-foreground">最新热点</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <h2 className="font-display text-lg font-semibold text-foreground">最新热点</h2>
+            <Link
+              to="/hotspots"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              查看全部
+              <ChevronRight className="size-4" />
+            </Link>
+          </div>
+
           {hotspots.length === 0 ? (
             <div
               className="rounded-xl border border-white/10 bg-white/[0.02] py-16 text-center"
-              style={{
-                backgroundImage: `
-                  linear-gradient(rgba(0, 212, 170, 0.03) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(0, 212, 170, 0.03) 1px, transparent 1px)
-                `,
-                backgroundSize: '24px 24px',
-              }}
+              style={emptyStateStyle}
             >
               <p className="text-muted-foreground text-sm">
                 暂无热点 · 添加消息源后点击「立即扫描」
               </p>
             </div>
           ) : (
-            <HoverEffect items={hotspots} />
+            <HoverEffect items={hotspots} onDeleteItem={handleDeleteItem} />
           )}
         </div>
       </AuroraBackground>

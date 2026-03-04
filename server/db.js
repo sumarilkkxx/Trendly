@@ -60,6 +60,22 @@ db.exec(`
   }
 });
 
+// 迁移：添加重要程度、真实性字段（Batch 2）
+['importance', 'authenticity'].forEach((col) => {
+  try {
+    db.exec(`ALTER TABLE hotspots ADD COLUMN ${col} TEXT`);
+  } catch (e) {
+    if (!e.message?.includes('duplicate column')) throw e;
+  }
+});
+
+// 迁移：将旧 relevance_score 1-5 转为 0-100
+try {
+  db.exec(`UPDATE hotspots SET relevance_score = relevance_score * 20 WHERE relevance_score BETWEEN 1 AND 5`);
+} catch (e) {
+  // ignore
+}
+
 // 默认设置
 const defaults = [
   ['scan_interval_minutes', '30'],

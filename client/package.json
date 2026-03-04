@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.2.6",
@@ -20,6 +21,7 @@
     "framer-motion": "^12.34.5",
     "lucide-react": "^0.576.0",
     "react": "^19.2.0",
+    "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
     "tailwind-merge": "^3.5.0",
