@@ -1,93 +1,331 @@
-import { useState, useEffect } from 'react';
-import { api } from '../api';
+import { useState, useEffect, useCallback } from 'react';
+import * as Popover from '@radix-ui/react-popover';
+import { PageMotion } from '@/components/ui/PageMotion';
+import { api } from '@/api';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { HoverEffect } from '@/components/ui/HoverEffect';
+import { AuroraBackground } from '@/components/ui/AuroraBackground';
+import { Search, Filter, Trash2, ArrowUpDown, ChevronDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+  SORT_OPTIONS,
+  SOURCE_OPTIONS,
+  TIME_RANGE_OPTIONS,
+  AUTHENTICITY_OPTIONS,
+  IMPORTANCE_OPTIONS,
+  RELEVANCE_RANGE_OPTIONS,
+} from '@/constants/hotspots';
 
 export default function Hotspots() {
   const [data, setData] = useState({ items: [], total: 0, page: 1, limit: 20 });
-  const [source, setSource] = useState('');
   const [search, setSearch] = useState('');
+  const [keyword, setKeyword] = useState('');
+  const [sort, setSort] = useState('latest_discovery');
+  const [sources, setSources] = useState([]);
+  const [timeRange, setTimeRange] = useState('');
+  const [authenticity, setAuthenticity] = useState('');
+  const [importance, setImportance] = useState('');
+  const [relevanceRange, setRelevanceRange] = useState('');
+  const [keywords, setKeywords] = useState([]);
 
-  const load = async (page = 1) => {
+  useEffect(() => {
+    api.keywords
+      .list()
+      .then((data) => setKeywords(Array.isArray(data) ? data : []))
+      .catch(() => setKeywords([]));
+  }, []);
+
+  const load = useCallback(async (page = 1, signal) => {
     try {
-      const params = { page, limit: 20 };
-      if (source) params.source = source;
+      const params = { page, limit: 21, sort };
       if (search.trim()) params.search = search.trim();
-      const res = await api.hotspots.list(params);
+      if (keyword.trim()) params.keyword = keyword.trim();
+      if (sources.length) params.sources = sources.join(',');
+      if (timeRange) params.timeRange = timeRange;
+      if (authenticity) params.authenticity = authenticity;
+      if (importance) params.importance = importance;
+      const rangeOpt = RELEVANCE_RANGE_OPTIONS.find((r) => r.value === relevanceRange);
+      if (rangeOpt?.min != null) params.relevanceMin = rangeOpt.min;
+      if (rangeOpt?.max != null) params.relevanceMax = rangeOpt.max;
+      const res = await api.hotspots.list(params, { signal });
+      if (signal?.aborted) return;
       setData(res);
+    } catch (e) {
+      if (e?.name === 'AbortError' || signal?.aborted) return;
+      alert(e.message);
+    }
+  }, [sort, sources, timeRange, search, keyword, authenticity, importance, relevanceRange]);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    load(1, ctrl.signal);
+    return () => ctrl.abort();
+  }, [load]);
+
+  const toggleSource = (v) => {
+    setSources((prev) => (prev.includes(v) ? prev.filter((s) => s !== v) : [...prev, v]));
+  };
+
+  const items = (data.items ?? []).map((h) => ({
+    ...h,
+    link: h.url,
+    description: h.summary,
+  }));
+
+  const handleDeleteItem = async (item) => {
+    if (!item?.id) return;
+    try {
+      await api.hotspots.remove(item.id);
+      setData((prev) => {
+        const nextItems = (prev.items ?? []).filter((h) => h.id !== item.id);
+        const nextTotal = Math.max(0, (prev.total ?? 0) - 1);
+        return { ...prev, items: nextItems, total: nextTotal };
+      });
     } catch (e) {
       alert(e.message);
     }
   };
 
-  useEffect(() => {
-    load(1);
-  }, [source, search]);
+  const handleClearAll = async () => {
+    if (!window.confirm('确定要删除当前所有热点吗？此操作不可恢复。')) return;
+    try {
+      await api.hotspots.clearAll();
+      setData((prev) => ({ ...prev, items: [], total: 0, page: 1 }));
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  const emptyStateStyle = {
+    backgroundImage: 'linear-gradient(rgba(0, 212, 170, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 212, 170, 0.03) 1px, transparent 1px)',
+    backgroundSize: '24px 24px',
+  };
 
   return (
-    <div className="space-y-6">
-      <h1 className="font-display text-2xl font-semibold text-cyber-accent">热点列表</h1>
-
-      <div className="flex flex-wrap gap-4">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="搜索标题/摘要"
-          className="flex-1 min-w-[200px] px-3 py-2 rounded bg-cyber-bg/50 border border-cyber-border text-slate-200 placeholder-cyber-muted focus:outline-none focus:border-cyber-accent"
-        />
-        <input
-          type="text"
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-          placeholder="按来源筛选，如 huggingface、twitter"
-          className="w-48 px-3 py-2 rounded bg-cyber-bg/50 border border-cyber-border text-slate-200 placeholder-cyber-muted focus:outline-none focus:border-cyber-accent"
-        />
-      </div>
-
-      <div className="space-y-3">
-        {data.items?.length === 0 ? (
-          <p className="text-cyber-muted text-sm">暂无热点</p>
-        ) : (
-          data.items?.map((h) => (
-            <div key={h.id} className="hud-card p-5">
-              <a
-                href={h.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-cyber-accent hover:underline font-medium"
-              >
-                {h.title}
-              </a>
-              <div className="text-cyber-muted text-sm mt-1">{h.summary}</div>
-              <div className="flex gap-3 mt-2 text-xs text-cyber-muted">
-                <span>{h.source}</span>
-                <span>{h.created_at}</span>
-              </div>
+    <PageMotion className="space-y-6">
+      <AuroraBackground>
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <div>
+              <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">热点列表</h1>
+              <p className="mt-1 text-muted-foreground text-sm">按来源、关键词、时间筛选，支持多种排序</p>
             </div>
-          ))
-        )}
-      </div>
 
-      {data.total > data.limit && (
-        <div className="flex justify-center gap-2">
-          <button
-            onClick={() => load(data.page - 1)}
-            disabled={data.page <= 1}
-            className="px-3 py-1 rounded bg-cyber-accent/20 text-cyber-accent disabled:opacity-50"
-          >
-            上一页
-          </button>
-          <span className="px-3 py-1 text-cyber-muted">
-            {data.page} / {Math.ceil(data.total / data.limit)}
-          </span>
-          <button
-            onClick={() => load(data.page + 1)}
-            disabled={data.page >= Math.ceil(data.total / data.limit)}
-            className="px-3 py-1 rounded bg-cyber-accent/20 text-cyber-accent disabled:opacity-50"
-          >
-            下一页
-          </button>
+            <Card className="border-white/10 bg-white/[0.02] shadow-[0_1px_0_0_rgba(255,255,255,0.04)]">
+              <CardContent className="pt-6 pb-6">
+                {/* 顶部：搜索、操作 */}
+                <div className="flex flex-wrap gap-4 items-center justify-between mb-6">
+                  <div className="relative flex-1 min-w-[220px] max-w-md">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-foreground/55 pointer-events-none" />
+                    <Input
+                      type="search"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="搜索标题/摘要"
+                      className="hotspot-search h-11 text-[15px] min-h-[44px]"
+                      aria-label="搜索标题或摘要"
+                    />
+                  </div>
+                  {data.total > 0 && (
+                    <Button
+                      variant="destructive"
+                      className="min-h-[44px] px-5 py-2.5 whitespace-nowrap shrink-0 transition-all duration-200 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)]"
+                      onClick={handleClearAll}
+                    >
+                      <Trash2 className="size-4" />
+                      一键删除全部热点
+                    </Button>
+                  )}
+                </div>
+
+                {/* 排序与数据来源（下拉框） */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-medium text-foreground/90 mb-2 tracking-tight">
+                      <ArrowUpDown className="size-4 text-primary/90 shrink-0" />
+                      排序
+                    </label>
+                    <select
+                      value={sort}
+                      onChange={(e) => setSort(e.target.value)}
+                      className="hotspot-form-control w-full"
+                      aria-label="排序方式"
+                    >
+                      {SORT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-medium text-foreground/90 mb-2 tracking-tight">
+                      <Filter className="size-4 text-primary/90 shrink-0" />
+                      数据来源
+                    </label>
+                    <Popover.Root>
+                      <Popover.Trigger asChild>
+                        <button
+                          type="button"
+                          className="hotspot-select-trigger text-[15px]"
+                          aria-label="选择数据来源"
+                        >
+                          <span
+                            className={cn(
+                              'min-w-0 flex-1 truncate text-left',
+                              sources.length ? 'text-foreground' : 'text-foreground/50'
+                            )}
+                            title={sources.length && sources.length < SOURCE_OPTIONS.length
+                              ? SOURCE_OPTIONS.filter((o) => sources.includes(o.value)).map((o) => o.label).join('、')
+                              : undefined
+                            }
+                          >
+                            {sources.length === 0
+                              ? '全部来源'
+                              : sources.length === SOURCE_OPTIONS.length
+                                ? '全部'
+                                : SOURCE_OPTIONS.filter((o) => sources.includes(o.value)).map((o) => o.label).join('、')}
+                          </span>
+                          <ChevronDown className="size-4 shrink-0 text-foreground/55 transition-transform duration-200" />
+                        </button>
+                      </Popover.Trigger>
+                      <Popover.Portal>
+                        <Popover.Content
+                          align="start"
+                          sideOffset={6}
+                          className="z-50 w-[var(--radix-popover-trigger-width)] max-h-[280px] overflow-y-auto hotspot-popover-content outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+                        >
+                          {SOURCE_OPTIONS.map((o) => {
+                            const checked = sources.includes(o.value);
+                            return (
+                              <button
+                                key={o.value}
+                                type="button"
+                                onClick={() => toggleSource(o.value)}
+                                className={cn(
+                                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-all duration-150 min-h-[40px]',
+                                  checked ? 'bg-primary/15 text-primary' : 'text-foreground/90 hover:bg-white/[0.06]'
+                                )}
+                              >
+                                <span className={cn('flex size-4 shrink-0 items-center justify-center rounded border transition-colors duration-150', checked ? 'border-primary bg-primary' : 'border-white/25')}>
+                                  {checked && <Check className="size-2.5 text-white" strokeWidth={3} />}
+                                </span>
+                                {o.label}
+                              </button>
+                            );
+                          })}
+                        </Popover.Content>
+                      </Popover.Portal>
+                    </Popover.Root>
+                  </div>
+                </div>
+
+                {/* 筛选分组：关键词与时间 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground/90 mb-2 tracking-tight">关联关键词</label>
+                    {keywords.length > 0 ? (
+                      <select
+                        value={keyword}
+                        onChange={(e) => setKeyword(e.target.value)}
+                        className="hotspot-form-control w-full"
+                        aria-label="按监控关键词筛选"
+                      >
+                        <option value="">全部</option>
+                        {keywords.map((k) => (
+                          <option key={k.id} value={k.keyword}>{k.keyword}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input
+                        type="text"
+                        value={keyword}
+                        onChange={(e) => setKeyword(e.target.value)}
+                        placeholder="输入关键词"
+                        className="hotspot-form-control w-full h-11 min-h-[44px] rounded-xl"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground/90 mb-2 tracking-tight">时间范围</label>
+                    <select
+                      value={timeRange}
+                      onChange={(e) => setTimeRange(e.target.value)}
+                      className="hotspot-form-control w-full"
+                      aria-label="时间范围"
+                    >
+                      {TIME_RANGE_OPTIONS.map((o) => (
+                        <option key={o.value || 'all'} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 筛选分组：质量筛选 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-5 border-t border-white/[0.08]">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground/90 mb-2 tracking-tight">真实性</label>
+                    <select
+                      value={authenticity}
+                      onChange={(e) => setAuthenticity(e.target.value)}
+                      className="hotspot-form-control w-full"
+                      aria-label="真实性"
+                    >
+                      {AUTHENTICITY_OPTIONS.map((o) => (
+                        <option key={o.value || 'all'} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground/90 mb-2 tracking-tight">重要程度</label>
+                    <select
+                      value={importance}
+                      onChange={(e) => setImportance(e.target.value)}
+                      className="hotspot-form-control w-full"
+                      aria-label="重要程度"
+                    >
+                      {IMPORTANCE_OPTIONS.map((o) => (
+                        <option key={o.value || 'all'} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground/90 mb-2 tracking-tight">相关性</label>
+                    <select
+                      value={relevanceRange}
+                      onChange={(e) => setRelevanceRange(e.target.value)}
+                      className="hotspot-form-control w-full"
+                      aria-label="相关性分数区间"
+                    >
+                      {RELEVANCE_RANGE_OPTIONS.map((o) => (
+                        <option key={o.value || 'all'} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="mt-8">
+            {items.length === 0 ? (
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] py-16 text-center" style={emptyStateStyle}>
+                <p className="text-muted-foreground text-sm">暂无热点</p>
+              </div>
+            ) : (
+              <HoverEffect items={items} onDeleteItem={handleDeleteItem} />
+            )}
+
+            {data.total > data.limit && (
+              <div className="flex justify-center items-center gap-3 pt-4">
+                <Button variant="outline" onClick={() => load(data.page - 1, undefined)} disabled={data.page <= 1} aria-label="上一页" className="border-white/10 hover:bg-white/5">上一页</Button>
+                <span className="text-muted-foreground text-sm">{data.page} / {Math.ceil(data.total / data.limit)}</span>
+                <Button variant="outline" onClick={() => load(data.page + 1, undefined)} disabled={data.page >= Math.ceil(data.total / data.limit)} aria-label="下一页" className="border-white/10 hover:bg-white/5">下一页</Button>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-    </div>
+      </AuroraBackground>
+    </PageMotion>
   );
 }

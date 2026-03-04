@@ -4,28 +4,137 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --cyber-bg: #0a0e17;
-  --cyber-card: #0f1629;
-  --cyber-accent: #00d4aa;
-  --cyber-glow: #00ffcc;
+html {
+  /* 整体页面渐变背景：深蓝底 + 顶部微光 + 底部青调 */
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -30%, hsl(222 50% 12% / 0.5), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 80% 100%, hsl(174 60% 15% / 0.15), transparent 45%),
+    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(222 48% 5%) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 body {
-  @apply bg-cyber-bg text-slate-200 antialiased;
+  @apply bg-transparent text-foreground antialiased;
   font-family: 'JetBrains Mono', monospace;
+  line-height: 1.5;
+  min-height: 100vh;
 }
 
 .font-display {
   font-family: 'Orbitron', sans-serif;
 }
 
-/* HUD-style card */
-.hud-card {
-  @apply rounded-lg border border-cyber-border/50 bg-cyber-card/80 backdrop-blur;
-  box-shadow: 0 0 0 1px rgba(0, 212, 170, 0.1), 0 0 20px rgba(0, 212, 170, 0.05);
+/* UI/UX Pro Max: respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-.hud-card:hover {
-  box-shadow: 0 0 0 1px rgba(0, 212, 170, 0.2), 0 0 25px rgba(0, 212, 170, 0.1);
+/* Focus visible for keyboard nav (a11y) */
+.focus-ring:focus-visible {
+  @apply outline-none ring-2 ring-cyber-accent/50 ring-offset-2 ring-offset-background;
+}
+
+/* 下拉选项清晰度：深色背景下选项文字需足够对比度 */
+select option {
+  background: hsl(222 40% 12%);
+  color: hsl(210 40% 96%);
+  padding: 0.5rem;
+}
+
+/* 热点筛选：统一表单控件样式（玻璃态、过渡、焦点环） */
+.hotspot-form-control {
+  @apply min-h-[44px] px-3 rounded-xl border transition-all duration-200 cursor-pointer;
+  @apply bg-white/[0.04] border-white/10;
+  @apply hover:bg-white/[0.06] hover:border-white/15;
+  @apply focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.06];
+  @apply text-foreground text-[15px];
+}
+select.hotspot-form-control {
+  @apply pr-10 appearance-none bg-no-repeat bg-[length:1rem] bg-[right_0.75rem_center];
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+.hotspot-form-control::placeholder {
+  @apply text-foreground/45;
+}
+
+/* 搜索框增强 */
+.hotspot-search {
+  @apply pl-10 pr-4 rounded-xl;
+  @apply bg-white/[0.04] border border-white/10;
+  @apply hover:bg-white/[0.06] hover:border-white/15;
+  @apply focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:border-primary/40;
+  @apply transition-all duration-200;
+}
+
+/* 下拉触发器（数据来源等多选） */
+.hotspot-select-trigger {
+  @apply min-h-[44px] w-full flex items-center justify-between gap-2 rounded-xl border px-3;
+  @apply bg-white/[0.04] border-white/10;
+  @apply hover:bg-white/[0.06] hover:border-white/15;
+  @apply focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20;
+  @apply transition-all duration-200 cursor-pointer;
+}
+
+/* 多选下拉内容区 */
+.hotspot-popover-content {
+  @apply rounded-xl border border-white/15 bg-[hsl(222_38%_11%)];
+  @apply shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.04)];
+  @apply p-2 backdrop-blur-sm;
+}
+
+/* react-day-picker 深色主题 */
+.rdp-dark {
+  --rdp-accent-color: hsl(174 100% 42%);
+  --rdp-accent-background-color: hsl(174 100% 42% / 0.2);
+  --rdp-today-color: hsl(174 100% 42%);
+}
+.rdp-dark .rdp-day_button {
+  color: hsl(210 40% 96%);
+}
+.rdp-dark .rdp-weekday {
+  color: hsl(210 40% 96% / 0.7);
+}
+.rdp-dark .rdp-month_caption,
+.rdp-dark .rdp-caption_label {
+  color: hsl(210 40% 96%);
+}
+
+@layer base {
+  /* Dark only: 深色底 + 青/蓝霓虹 - 前沿热点工具风格 */
+  :root {
+    --background: 222 45% 7%;
+    --foreground: 210 40% 96%;
+    --card: 222 35% 9%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 35% 9%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 174 100% 42%;
+    --primary-foreground: 222 47% 6%;
+    --secondary: 222 25% 14%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 222 20% 14%;
+    --muted-foreground: 215 16% 57%;
+    --accent: 222 25% 14%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 210 40% 96%;
+    --border: 222 20% 18%;
+    --input: 222 20% 18%;
+    --ring: 174 100% 42%;
+    --sidebar-background: 222 48% 5%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 174 100% 42%;
+    --sidebar-primary-foreground: 222 47% 6%;
+    --sidebar-accent: 222 25% 14%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 222 20% 16%;
+    --sidebar-ring: 174 100% 42%;
+  }
 }

@@ -1,48 +1,119 @@
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { cloneElement } from 'react';
+import { BrowserRouter, Routes, Route, NavLink, useLocation, useMatch, Navigate } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+import { LayoutGrid, Flame, Settings, Info } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
-import Keywords from './pages/Keywords';
 import Hotspots from './pages/Hotspots';
-import Sources from './pages/Sources';
-import Settings from './pages/Settings';
+import SettingsPage from './pages/Settings';
 import About from './pages/About';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarInset,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 
 const nav = [
-  { to: '/', label: '仪表盘', end: true },
-  { to: '/hotspots', label: '热点列表', end: false },
-  { to: '/keywords', label: '关键词', end: false },
-  { to: '/sources', label: '消息源', end: false },
-  { to: '/settings', label: '通知设置', end: false },
-  { to: '/about', label: '关于', end: false },
+  { to: '/', label: '仪表盘', end: true, icon: LayoutGrid },
+  { to: '/hotspots', label: '热点', end: false, icon: Flame },
+  { to: '/settings', label: '设置', end: false, icon: Settings },
+  { to: '/about', label: '关于', end: false, icon: Info },
 ];
+
+const routes = [
+  { path: '/', element: <Dashboard /> },
+  { path: '/hotspots', element: <Hotspots /> },
+  { path: '/settings', element: <SettingsPage /> },
+  { path: '/about', element: <About /> },
+  { path: '/keywords', element: <Navigate to="/settings" replace /> },
+  { path: '/sources', element: <Navigate to="/settings" replace /> },
+];
+
+function AnimatedRoutes() {
+  const location = useLocation();
+  const path = location.pathname;
+  const route = routes.find((r) => r.path === path);
+  const Page = route?.element ?? routes[0].element;
+
+  return (
+    <AnimatePresence mode="wait">
+      {Page ? cloneElement(Page, { key: path }) : null}
+    </AnimatePresence>
+  );
+}
+
+function NavItem({ to, end, label, icon: Icon }) {
+  const match = useMatch({ path: to, end: end ?? to === '/' });
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={!!match}>
+        <NavLink to={to} end={end}>
+          <Icon className="size-4" />
+          <span>{label}</span>
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+function AppSidebar() {
+  return (
+    <Sidebar>
+      <SidebarHeader className="border-b border-sidebar-border dark:border-white/10">
+        <div className="flex items-center gap-2 px-2 py-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_12px_rgba(0,212,170,0.3)]">
+            <span className="font-display text-sm font-bold">T</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="font-display text-sm font-semibold">Trendly</span>
+            <span className="text-xs text-muted-foreground">AI 热点监控</span>
+          </div>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>导航</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {nav.map((item) => (
+                <NavItem key={item.to} {...item} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter className="border-t border-sidebar-border dark:border-white/10">
+        <div className="px-2 py-3 text-xs text-muted-foreground">
+          基于 OpenRouter · Twitter · Reddit
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
 
 function Layout({ children }) {
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-56 border-r border-cyber-border/50 bg-cyber-card/50 p-4 flex flex-col">
-        <h1 className="font-display text-lg font-semibold text-cyber-accent mb-6 px-2">
-          Trendly
-        </h1>
-        <nav className="flex-1 space-y-1">
-          {nav.map(({ to, label, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                `block px-3 py-2 rounded text-sm transition-colors ${
-                  isActive
-                    ? 'bg-cyber-accent/20 text-cyber-accent border-l-2 border-cyber-accent -ml-[2px] pl-[14px]'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`
-              }
-            >
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
-      <main className="flex-1 p-6 overflow-auto">{children}</main>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-white/10 px-4 md:hidden bg-background/80 backdrop-blur-sm">
+          <SidebarTrigger />
+          <span className="font-semibold">Trendly</span>
+        </header>
+        <main className="flex-1 overflow-auto p-6">
+          <div className="mx-auto max-w-6xl">{children}</div>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
@@ -51,12 +122,7 @@ export default function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/hotspots" element={<Hotspots />} />
-          <Route path="/keywords" element={<Keywords />} />
-          <Route path="/sources" element={<Sources />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/about" element={<About />} />
+          <Route path="/*" element={<AnimatedRoutes />} />
         </Routes>
       </Layout>
     </BrowserRouter>

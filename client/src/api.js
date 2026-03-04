@@ -1,9 +1,12 @@
 const API = '/api';
 
 async function request(path, options = {}) {
+  const { signal, ...rest } = options;
   const res = await fetch(`${API}${path}`, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
+    cache: 'no-store',
+    signal,
+    ...rest,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -21,10 +24,18 @@ export const api = {
     toggle: (id, enabled) => request(`/keywords/${id}`, { method: 'PATCH', body: JSON.stringify({ enabled }) }),
   },
   hotspots: {
-    list: (params) => {
-      const q = new URLSearchParams(params).toString();
-      return request(`/hotspots${q ? `?${q}` : ''}`);
+    list: (params, options = {}) => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params || {}).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') {
+          searchParams.append(k, String(v));
+        }
+      });
+      const q = searchParams.toString();
+      return request(`/hotspots${q ? `?${q}` : ''}`, options);
     },
+    remove: (id) => request(`/hotspots/${id}`, { method: 'DELETE' }),
+    clearAll: () => request('/hotspots', { method: 'DELETE' }),
   },
   settings: {
     get: () => request('/settings'),

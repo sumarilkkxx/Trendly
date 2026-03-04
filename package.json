@@ -9,12 +9,14 @@
     "dev:client": "cd client && npm run dev",
     "build": "cd client && npm run build",
     "start": "node server/index.js",
-    "install:all": "npm install && cd client && npm install"
+    "install:all": "npm install && cd client && npm install",
+    "test": "node --test test/utils.test.js test/scanner.test.js test/api.test.js test/twitterFilter.test.js test/openRouter.test.js test/db.test.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
+    "duck-duck-scrape": "^2.2.7",
     "express": "^4.21.1",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
