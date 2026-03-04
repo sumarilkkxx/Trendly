@@ -1,9 +1,11 @@
 const API_BASE = 'https://api.twitterapi.io';
+import { getTwitterFilterConfig, passesTwitterFilter } from './twitterFilter.js';
 
-export async function fetchTwitter(keywords = []) {
+export async function fetchTwitter(keywords = [], filterConfig) {
   const apiKey = process.env.TWITTERAPI_IO_API_KEY;
   if (!apiKey || !keywords.length) return [];
 
+  const config = filterConfig || getTwitterFilterConfig({});
   const terms = keywords.slice(0, 3).map((k) => `"${k}"`).join(' OR ');
   const query = terms || 'AI OR GPT';
 
@@ -16,7 +18,7 @@ export async function fetchTwitter(keywords = []) {
     while (page < maxPages) {
       const params = new URLSearchParams({
         query,
-        queryType: 'Latest',
+        queryType: 'Top',
         cursor: cursor || '',
       });
       const res = await fetch(`${API_BASE}/twitter/tweet/advanced_search?${params}`, {
@@ -29,6 +31,7 @@ export async function fetchTwitter(keywords = []) {
       }
       const tweets = data.tweets || [];
       for (const t of tweets) {
+        if (!passesTwitterFilter(t, config)) continue;
         items.push({
           source: 'twitter',
           externalId: t.id,
@@ -37,6 +40,9 @@ export async function fetchTwitter(keywords = []) {
           url: t.url || `https://x.com/i/status/${t.id}`,
           rawContent: (t.text || '').slice(0, 2000),
           publishedAt: t.createdAt || null,
+          likeCount: t.likeCount ?? 0,
+          retweetCount: t.retweetCount ?? 0,
+          viewCount: t.viewCount ?? 0,
         });
       }
       if (!data.has_next_page || !data.next_cursor) break;

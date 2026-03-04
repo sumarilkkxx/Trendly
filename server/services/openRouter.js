@@ -2,7 +2,7 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export async function filterAndSummarize(item, keywords = []) {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return { keep: true, summary: item.summary || item.title };
+  if (!apiKey) return { keep: true, summary: item.summary || item.title, relevance: 3 };
 
   const text = [item.title, item.summary, item.rawContent].filter(Boolean).join('\n').slice(0, 1500);
   const kwHint = keywords.length ? ` 用户关注关键词：${keywords.join('、')}` : '';
@@ -11,7 +11,9 @@ export async function filterAndSummarize(item, keywords = []) {
 1. 真实、有价值的 AI/技术相关资讯（保留）
 2. 营销、假冒、低质、无关内容（过滤）
 
-仅回复 JSON：{"keep": true/false, "summary": "一句话摘要（若保留）"}`;
+同时评估与 AI/技术主题的相关性，1-5 分：5=非常相关，4=相关，3=一般，2=弱相关，1=几乎无关。
+
+仅回复 JSON：{"keep": true/false, "summary": "一句话摘要（若保留）", "relevance": 1-5}`;
 
   const userPrompt = `内容来源：${item.source}\n标题：${item.title}\n\n正文片段：\n${text}\n${kwHint}\n\n请判断并回复 JSON。`;
 
@@ -36,15 +38,18 @@ export async function filterAndSummarize(item, keywords = []) {
 
     const data = await res.json();
     const content = data?.choices?.[0]?.message?.content;
-    if (!content) return { keep: true, summary: item.summary || item.title };
+    if (!content) return { keep: true, summary: item.summary || item.title, relevance: 3 };
 
     const parsed = JSON.parse(content);
+    const rel = parseInt(parsed.relevance, 10);
+    const relevance = rel >= 1 && rel <= 5 ? rel : 3;
     return {
       keep: !!parsed.keep,
       summary: typeof parsed.summary === 'string' ? parsed.summary : (item.summary || item.title),
+      relevance,
     };
   } catch (e) {
     console.error('[OpenRouter]', e.message);
-    return { keep: true, summary: item.summary || item.title };
+    return { keep: true, summary: item.summary || item.title, relevance: 3 };
   }
 }

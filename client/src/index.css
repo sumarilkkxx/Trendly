@@ -4,17 +4,21 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --cyber-bg: #0a0e17;
-  --cyber-card: #0f1629;
-  --cyber-accent: #00d4aa;
-  --cyber-glow: #00ffcc;
+html {
+  /* 整体页面渐变背景：深蓝底 + 顶部微光 + 底部青调 */
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -30%, hsl(222 50% 12% / 0.5), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 80% 100%, hsl(174 60% 15% / 0.15), transparent 45%),
+    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(222 48% 5%) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 body {
-  @apply bg-cyber-bg text-slate-200 antialiased;
+  @apply bg-transparent text-foreground antialiased;
   font-family: 'JetBrains Mono', monospace;
   line-height: 1.5;
+  min-height: 100vh;
 }
 
 .font-display {
@@ -34,5 +38,38 @@ body {
 
 /* Focus visible for keyboard nav (a11y) */
 .focus-ring:focus-visible {
-  @apply outline-none ring-2 ring-cyber-accent/50 ring-offset-2 ring-offset-[#0a0e17];
+  @apply outline-none ring-2 ring-cyber-accent/50 ring-offset-2 ring-offset-background;
+}
+
+@layer base {
+  /* Dark only: 深色底 + 青/蓝霓虹 - 前沿热点工具风格 */
+  :root {
+    --background: 222 45% 7%;
+    --foreground: 210 40% 96%;
+    --card: 222 35% 9%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 35% 9%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 174 100% 42%;
+    --primary-foreground: 222 47% 6%;
+    --secondary: 222 25% 14%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 222 20% 14%;
+    --muted-foreground: 215 16% 57%;
+    --accent: 222 25% 14%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 210 40% 96%;
+    --border: 222 20% 18%;
+    --input: 222 20% 18%;
+    --ring: 174 100% 42%;
+    --sidebar-background: 222 48% 5%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 174 100% 42%;
+    --sidebar-primary-foreground: 222 47% 6%;
+    --sidebar-accent: 222 25% 14%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 222 20% 16%;
+    --sidebar-ring: 174 100% 42%;
+  }
 }

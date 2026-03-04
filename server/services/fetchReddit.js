@@ -37,6 +37,9 @@ export async function fetchReddit() {
           url: `https://reddit.com${post.permalink}`,
           rawContent: (post.title + ' ' + (post.selftext || '')).slice(0, 2000),
           publishedAt: post.created_utc ? new Date(post.created_utc * 1000).toISOString() : null,
+          likeCount: post.ups ?? post.score ?? 0,
+          retweetCount: post.num_comments ?? 0,
+          viewCount: 0,
         });
       }
     } catch (e) {

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { api } from '../api';
-import { BentoCard } from '../components/ui/BentoCard';
-import { Button } from '../components/ui/Button';
-import { HoverEffect } from '../components/ui/HoverEffect';
-import { PageMotion } from '../components/ui/PageMotion';
+import { api } from '@/api';
+import { Button } from '@/components/ui/button';
+import { HoverEffect } from '@/components/ui/HoverEffect';
+import { PageMotion } from '@/components/ui/PageMotion';
+import { AuroraBackground } from '@/components/ui/AuroraBackground';
+import { BentoGrid, BentoGridItem } from '@/components/ui/BentoGrid';
+import { Flame, KeyRound, Rss, Zap } from 'lucide-react';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ keywords: 0, hotspots: 0, sources: 0 });
@@ -40,49 +42,64 @@ export default function Dashboard() {
     }
   };
 
+  const statItems = [
+    { label: '关键词', value: stats.keywords, icon: KeyRound },
+    { label: '热点', value: stats.hotspots, icon: Flame },
+    { label: 'RSS 源', value: stats.sources, icon: Rss },
+  ];
+
   return (
     <PageMotion className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white">
-            第一时间发现 AI 热点
-          </h1>
-          <p className="mt-1 text-slate-400 text-sm">
-            简洁、高效、永不落伍
-          </p>
-        </div>
-        <Button onClick={runScan} disabled={scanning} className="rounded-full">
-          {scanning ? '扫描中…' : '立即扫描'}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { label: '关键词', value: stats.keywords, cls: 'text-cyber-accent', delay: 0 },
-          { label: '热点', value: stats.hotspots, cls: 'text-cyan-400', delay: 0.05 },
-          { label: 'RSS 源', value: stats.sources, cls: 'text-emerald-400', delay: 0.1 },
-        ].map(({ label, value, cls, delay }) => (
-          <BentoCard key={label} delay={delay}>
-            <div className="text-slate-400 text-sm">{label}</div>
-            <div className={`text-3xl font-display font-bold mt-1 ${cls}`}>{value}</div>
-          </BentoCard>
-        ))}
-      </div>
-
-      <div>
-        <h2 className="font-display text-lg font-semibold text-cyber-accent mb-4">
-          最新热点
-        </h2>
-        {hotspots.length === 0 ? (
-          <BentoCard>
-            <p className="text-slate-500 text-sm text-center py-8">
-              暂无热点 · 添加消息源后点击「立即扫描」
+      <AuroraBackground>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+              第一时间发现 AI 热点
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              简洁、高效、永不落伍 · 基于 OpenRouter 智能过滤
             </p>
-          </BentoCard>
-        ) : (
-          <HoverEffect items={hotspots} />
-        )}
-      </div>
+          </div>
+          <Button
+            onClick={runScan}
+            disabled={scanning}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_rgba(0,212,170,0.2)] hover:shadow-[0_0_24px_rgba(0,212,170,0.3)] transition-shadow"
+          >
+            <Zap className="size-4" />
+            {scanning ? '扫描中…' : '立即扫描'}
+          </Button>
+        </div>
+
+        <BentoGrid className="mb-8">
+          {statItems.map(({ label, value, icon: Icon }) => (
+            <BentoGridItem key={label} icon={<Icon />} title={label}>
+              <span className="text-2xl font-bold text-primary tabular-nums mt-1">{value}</span>
+            </BentoGridItem>
+          ))}
+        </BentoGrid>
+
+        <div>
+          <h2 className="font-display text-lg font-semibold mb-4 text-foreground">最新热点</h2>
+          {hotspots.length === 0 ? (
+            <div
+              className="rounded-xl border border-white/10 bg-white/[0.02] py-16 text-center"
+              style={{
+                backgroundImage: `
+                  linear-gradient(rgba(0, 212, 170, 0.03) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(0, 212, 170, 0.03) 1px, transparent 1px)
+                `,
+                backgroundSize: '24px 24px',
+              }}
+            >
+              <p className="text-muted-foreground text-sm">
+                暂无热点 · 添加消息源后点击「立即扫描」
+              </p>
+            </div>
+          ) : (
+            <HoverEffect items={hotspots} />
+          )}
+        </div>
+      </AuroraBackground>
     </PageMotion>
   );
 }

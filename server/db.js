@@ -51,6 +51,15 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_keywords_enabled ON keywords(enabled);
 `);
 
+// 迁移：添加热度、相关性、匹配关键词字段（若不存在）
+['like_count', 'retweet_count', 'view_count', 'relevance_score', 'matched_keywords'].forEach((col) => {
+  try {
+    db.exec(`ALTER TABLE hotspots ADD COLUMN ${col} ${col === 'matched_keywords' ? 'TEXT' : 'INTEGER'}`);
+  } catch (e) {
+    if (!e.message?.includes('duplicate column')) throw e;
+  }
+});
+
 // 默认设置
 const defaults = [
   ['scan_interval_minutes', '30'],
@@ -58,6 +67,10 @@ const defaults = [
   ['webhook_url', ''],
   ['webhook_type', ''],
   ['theme_range', ''],
+  ['twitter_filter_mode', 'strict'],
+  ['twitter_min_likes', '50'],
+  ['twitter_min_retweets', '20'],
+  ['twitter_min_views', '2000'],
 ];
 
 const stmt = db.prepare(

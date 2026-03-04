@@ -25,6 +25,8 @@ export const api = {
       const q = new URLSearchParams(params).toString();
       return request(`/hotspots${q ? `?${q}` : ''}`);
     },
+    remove: (id) => request(`/hotspots/${id}`, { method: 'DELETE' }),
+    clearAll: () => request('/hotspots', { method: 'DELETE' }),
   },
   settings: {
     get: () => request('/settings'),
