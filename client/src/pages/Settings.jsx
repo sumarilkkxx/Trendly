@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Sliders, KeyRound, Rss, Plus } from 'lucide-react';
+import { Bell, Sliders, KeyRound, Rss, Plus, Settings as SettingsIcon } from 'lucide-react';
 import { PageMotion } from '@/components/ui/PageMotion';
 import { api } from '@/api';
 import {
@@ -15,10 +15,10 @@ import { Input } from '@/components/ui/input';
 import { AuroraBackground } from '@/components/ui/AuroraBackground';
 
 const TWITTER_MODES = [
-  { id: 'loose', label: '宽松模式', hint: '点赞≥5，转发≥2，浏览≥200，粉丝≥50', desc: '保留更多内容' },
-  { id: 'standard', label: '标准模式', hint: '点赞≥10，转发≥5，浏览≥500，粉丝≥100，排除回复', desc: '推荐' },
-  { id: 'strict', label: '严格模式', hint: '点赞≥50，转发≥20，浏览≥2000，粉丝≥100，排除回复', desc: '只保留热门' },
-  { id: 'custom', label: '自定义', hint: '我来指定具体阈值', desc: '' },
+  { id: 'loose', label: '宽松模式', hint: '点赞>=5，转发>=2，浏览>=200，粉丝>=50', desc: '保留更多内容' },
+  { id: 'standard', label: '标准模式', hint: '点赞>=10，转发>=5，浏览>=500，粉丝>=100，排除回复', desc: '推荐' },
+  { id: 'strict', label: '严格模式', hint: '点赞>=50，转发>=20，浏览>=2000，粉丝>=100，排除回复', desc: '只保留热门' },
+  { id: 'custom', label: '自定义', hint: '指定具体阈值', desc: '' },
 ];
 
 export default function SettingsPage() {
@@ -39,96 +39,42 @@ export default function SettingsPage() {
   const [rssName, setRssName] = useState('');
 
   const loadKeywords = async () => {
-    try {
-      const data = await api.keywords.list();
-      setKeywords(data);
-    } catch (e) {
-      alert(e.message);
-    }
+    try { setKeywords(await api.keywords.list()); } catch (e) { alert(e.message); }
   };
-
   const loadSources = async () => {
-    try {
-      const data = await api.sources.list();
-      setSources(data);
-    } catch (e) {
-      alert(e.message);
-    }
+    try { setSources(await api.sources.list()); } catch (e) { alert(e.message); }
   };
 
   useEffect(() => {
-    api.settings
-      .get()
-      .then((data) => {
-        const { theme, ...rest } = data;
-        setS((prev) => ({ ...prev, ...rest }));
-      })
-      .catch(console.error);
+    api.settings.get().then((data) => {
+      const { theme, ...rest } = data;
+      setS((prev) => ({ ...prev, ...rest }));
+    }).catch(console.error);
   }, []);
 
-  useEffect(() => {
-    loadKeywords();
-    loadSources();
-  }, []);
+  useEffect(() => { loadKeywords(); loadSources(); }, []);
 
   const saveSettings = async () => {
-    try {
-      await api.settings.update(s);
-      alert('已保存');
-    } catch (e) {
-      alert(e.message);
-    }
+    try { await api.settings.update(s); alert('已保存'); } catch (e) { alert(e.message); }
   };
 
   const addKeyword = async () => {
     const kw = kwInput.trim();
     if (!kw) return;
-    try {
-      await api.keywords.add(kw);
-      setKwInput('');
-      loadKeywords();
-    } catch (e) {
-      alert(e.message);
-    }
+    try { await api.keywords.add(kw); setKwInput(''); loadKeywords(); } catch (e) { alert(e.message); }
   };
-
   const removeKeyword = async (id) => {
-    try {
-      await api.keywords.remove(id);
-      loadKeywords();
-    } catch (e) {
-      alert(e.message);
-    }
+    try { await api.keywords.remove(id); loadKeywords(); } catch (e) { alert(e.message); }
   };
-
   const toggleKeyword = async (id, enabled) => {
-    try {
-      await api.keywords.toggle(id, !enabled);
-      loadKeywords();
-    } catch (e) {
-      alert(e.message);
-    }
+    try { await api.keywords.toggle(id, !enabled); loadKeywords(); } catch (e) { alert(e.message); }
   };
-
   const addSource = async () => {
     if (!rssUrl.trim()) return;
-    try {
-      await api.sources.add(rssUrl.trim(), rssName.trim());
-      setRssUrl('');
-      setRssName('');
-      loadSources();
-    } catch (e) {
-      alert(e.message);
-    }
+    try { await api.sources.add(rssUrl.trim(), rssName.trim()); setRssUrl(''); setRssName(''); loadSources(); } catch (e) { alert(e.message); }
   };
-
   const removeSource = async (id) => {
-    try {
-      await api.sources.remove(id);
-      loadSources();
-    } catch (e) {
-      alert(e.message);
-    }
+    try { await api.sources.remove(id); loadSources(); } catch (e) { alert(e.message); }
   };
 
   const isCustom = s.twitter_filter_mode === 'custom';
@@ -136,18 +82,25 @@ export default function SettingsPage() {
   return (
     <PageMotion className="space-y-10">
       <AuroraBackground>
-        <div className="mb-8">
+        {/* Header */}
+        <div className="mb-10 space-y-2">
+          <div className="flex items-center gap-2">
+            <SettingsIcon className="size-4 text-primary/60" />
+            <span className="font-display text-[10px] font-medium uppercase tracking-[0.2em] text-primary/60">
+              Configuration
+            </span>
+          </div>
           <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
             设置
           </h1>
-          <p className="mt-1 text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             通知频率、Twitter 过滤、关键词与消息源管理
           </p>
         </div>
 
-        <div className="space-y-10 max-w-4xl">
-          {/* 1. 关键词管理 */}
-          <Card className="border-white/10">
+        <div className="space-y-8 max-w-4xl">
+          {/* Keywords */}
+          <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base flex items-center gap-2">
                 <KeyRound className="size-4 text-primary shrink-0" />
@@ -163,7 +116,7 @@ export default function SettingsPage() {
                   onChange={(e) => setKwInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addKeyword()}
                   placeholder="如 GPT-5、Vibe Coding、Claude"
-                  className="flex-1 bg-white/5 border-white/10 min-w-0"
+                  className="flex-1 bg-white/[0.04] border-white/[0.08] min-w-0"
                 />
                 <Button onClick={addKeyword} className="sm:shrink-0">
                   <Plus className="size-4" />
@@ -171,8 +124,8 @@ export default function SettingsPage() {
                 </Button>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-2">
-                  已有关键词 <span className="text-foreground font-medium">{keywords.length}</span> 个
+                <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground/60 mb-3">
+                  已有关键词 <span className="text-primary font-medium">{keywords.length}</span> 个
                 </p>
                 {keywords.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4">暂无关键词</p>
@@ -184,31 +137,15 @@ export default function SettingsPage() {
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.02 }}
-                        className="flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.02] pl-3 pr-1 py-1.5 hover:border-primary/20 transition-colors"
+                        className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] pl-3 pr-1 py-1.5 hover:border-primary/20 transition-all duration-200"
                       >
-                        <span
-                          className={
-                            k.enabled
-                              ? 'text-sm text-foreground'
-                              : 'text-sm text-muted-foreground line-through'
-                          }
-                        >
+                        <span className={k.enabled ? 'text-sm text-foreground' : 'text-sm text-muted-foreground line-through'}>
                           {k.keyword}
                         </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-1.5 text-xs"
-                          onClick={() => toggleKeyword(k.id, k.enabled)}
-                        >
+                        <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs" onClick={() => toggleKeyword(k.id, k.enabled)}>
                           {k.enabled ? '禁用' : '启用'}
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-1.5 text-xs text-destructive hover:text-destructive"
-                          onClick={() => removeKeyword(k.id)}
-                        >
+                        <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs text-destructive hover:text-destructive" onClick={() => removeKeyword(k.id)}>
                           删除
                         </Button>
                       </motion.div>
@@ -219,66 +156,45 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* 2. 消息源 */}
-          <Card className="border-white/10">
+          {/* RSS Sources */}
+          <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base flex items-center gap-2">
                 <Rss className="size-4 text-primary shrink-0" />
                 消息源
               </CardTitle>
-              <CardDescription>内置 Hugging Face、Hacker News、Google News、DuckDuckGo、TechCrunch 等 · 可添加 Planet AI、twitrss 等 RSS</CardDescription>
+              <CardDescription>内置 Hugging Face、Hacker News、Google News 等 · 可添加自定义 RSS</CardDescription>
             </CardHeader>
             <CardContent className="pt-0 space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px_auto] gap-3">
-                <Input
-                  type="url"
-                  value={rssUrl}
-                  onChange={(e) => setRssUrl(e.target.value)}
-                  placeholder="RSS URL"
-                  className="bg-white/5 border-white/10 min-w-0"
-                />
-                <Input
-                  type="text"
-                  value={rssName}
-                  onChange={(e) => setRssName(e.target.value)}
-                  placeholder="名称（可选）"
-                  className="bg-white/5 border-white/10"
-                />
+                <Input type="url" value={rssUrl} onChange={(e) => setRssUrl(e.target.value)} placeholder="RSS URL" className="bg-white/[0.04] border-white/[0.08] min-w-0" />
+                <Input type="text" value={rssName} onChange={(e) => setRssName(e.target.value)} placeholder="名称（可选）" className="bg-white/[0.04] border-white/[0.08]" />
                 <Button onClick={addSource} className="sm:shrink-0">
                   <Plus className="size-4" />
                   添加
                 </Button>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-2">
-                  自定义 RSS <span className="text-foreground font-medium">{sources.length}</span> 个
+                <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground/60 mb-3">
+                  自定义 RSS <span className="text-primary font-medium">{sources.length}</span> 个
                 </p>
                 {sources.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4">暂无 RSS 源</p>
                 ) : (
                   <ul className="space-y-2">
-                    {sources.map((s, i) => (
+                    {sources.map((src, i) => (
                       <motion.li
-                        key={s.id}
+                        key={src.id}
                         initial={{ opacity: 0, x: -6 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.02 }}
-                        className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-lg border border-white/10 bg-white/[0.02] hover:border-primary/20 transition-colors"
+                        className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:border-primary/20 transition-all duration-200"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm text-foreground truncate">
-                            {s.name || s.url}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {s.url}
-                          </p>
+                          <p className="text-sm text-foreground truncate">{src.name || src.url}</p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{src.url}</p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive shrink-0"
-                          onClick={() => removeSource(s.id)}
-                        >
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive shrink-0" onClick={() => removeSource(src.id)}>
                           删除
                         </Button>
                       </motion.li>
@@ -289,8 +205,8 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* 3. 检查与推送频率 */}
-          <Card className="border-white/10">
+          {/* Scan & Notify */}
+          <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base flex items-center gap-2">
                 <Bell className="size-4 text-primary shrink-0" />
@@ -301,60 +217,38 @@ export default function SettingsPage() {
             <CardContent className="pt-0">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-md">
                 <div className="space-y-1.5">
-                  <label
-                    htmlFor="scan-interval"
-                    className="text-sm font-medium text-foreground block"
-                  >
+                  <label htmlFor="scan-interval" className="text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground/70 block">
                     检查频率（分钟）
                   </label>
                   <Input
                     id="scan-interval"
-                    type="number"
-                    min={5}
-                    max={1440}
+                    type="number" min={5} max={1440}
                     value={s.scan_interval_minutes}
-                    onChange={(e) =>
-                      setS((p) => ({
-                        ...p,
-                        scan_interval_minutes: parseInt(e.target.value, 10) || 30,
-                      }))
-                    }
-                    className="bg-white/5 border-white/10"
+                    onChange={(e) => setS((p) => ({ ...p, scan_interval_minutes: parseInt(e.target.value, 10) || 30 }))}
+                    className="bg-white/[0.04] border-white/[0.08]"
                   />
-                  <p className="text-xs text-muted-foreground">默认 30 分钟</p>
+                  <p className="text-[11px] text-muted-foreground/50">默认 30 分钟</p>
                 </div>
                 <div className="space-y-1.5">
-                  <label
-                    htmlFor="notify-interval"
-                    className="text-sm font-medium text-foreground block"
-                  >
+                  <label htmlFor="notify-interval" className="text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground/70 block">
                     通知频率（小时）
                   </label>
                   <Input
                     id="notify-interval"
-                    type="number"
-                    min={1}
-                    max={24}
+                    type="number" min={1} max={24}
                     value={s.notify_interval_hours}
-                    onChange={(e) =>
-                      setS((p) => ({
-                        ...p,
-                        notify_interval_hours: parseInt(e.target.value, 10) || 4,
-                      }))
-                    }
-                    className="bg-white/5 border-white/10"
+                    onChange={(e) => setS((p) => ({ ...p, notify_interval_hours: parseInt(e.target.value, 10) || 4 }))}
+                    className="bg-white/[0.04] border-white/[0.08]"
                   />
-                  <p className="text-xs text-muted-foreground">默认 4 小时汇总</p>
+                  <p className="text-[11px] text-muted-foreground/50">默认 4 小时汇总</p>
                 </div>
               </div>
-              <Button onClick={saveSettings} className="mt-4">
-                保存
-              </Button>
+              <Button onClick={saveSettings} className="mt-5">保存</Button>
             </CardContent>
           </Card>
 
-          {/* 4. Twitter 信息质量过滤 */}
-          <Card className="border-white/10">
+          {/* Twitter Filter */}
+          <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base flex items-center gap-2">
                 <Sliders className="size-4 text-primary shrink-0" />
@@ -369,114 +263,47 @@ export default function SettingsPage() {
                   return (
                     <label
                       key={m.id}
-                      className={`
-                        flex flex-col gap-1.5 p-4 rounded-lg cursor-pointer transition-all border-2
-                        ${
-                          checked
-                            ? 'border-primary bg-primary/10 shadow-[0_0_12px_rgba(0,212,170,0.1)]'
-                            : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
-                        }
-                      `}
+                      className={`flex flex-col gap-1.5 p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${
+                        checked
+                          ? 'border-primary/50 bg-primary/[0.08] shadow-[0_0_20px_rgba(0,212,170,0.08)]'
+                          : 'border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]'
+                      }`}
                     >
-                      <input
-                        type="radio"
-                        name="twitter_filter_mode"
-                        value={m.id}
-                        checked={checked}
-                        onChange={() =>
-                          setS((p) => ({ ...p, twitter_filter_mode: m.id }))
-                        }
-                        className="sr-only"
-                      />
-                      <span className="font-medium text-sm">{m.label}</span>
-                      {m.desc && (
-                        <span className="text-primary text-xs">{m.desc}</span>
-                      )}
+                      <input type="radio" name="twitter_filter_mode" value={m.id} checked={checked} onChange={() => setS((p) => ({ ...p, twitter_filter_mode: m.id }))} className="sr-only" />
+                      <span className="font-medium text-sm text-foreground">{m.label}</span>
+                      {m.desc && <span className="text-primary text-xs">{m.desc}</span>}
                       <span className="text-muted-foreground text-xs">{m.hint}</span>
                     </label>
                   );
                 })}
               </div>
               {isCustom && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="mt-5 pt-5 border-t border-white/10"
-                >
-                  <p className="text-sm font-medium text-foreground mb-3">自定义阈值</p>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-5 pt-5 border-t border-white/[0.06]">
+                  <p className="text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground/70 mb-3">自定义阈值</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-2xl">
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground block">点赞≥</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={s.twitter_min_likes}
-                        onChange={(e) =>
-                          setS((p) => ({
-                            ...p,
-                            twitter_min_likes: parseInt(e.target.value, 10) || 0,
-                          }))
-                        }
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground block">转发≥</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={s.twitter_min_retweets}
-                        onChange={(e) =>
-                          setS((p) => ({
-                            ...p,
-                            twitter_min_retweets: parseInt(e.target.value, 10) || 0,
-                          }))
-                        }
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground block">浏览≥</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={s.twitter_min_views}
-                        onChange={(e) =>
-                          setS((p) => ({
-                            ...p,
-                            twitter_min_views: parseInt(e.target.value, 10) || 0,
-                          }))
-                        }
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground block">作者粉丝≥</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={s.twitter_min_followers ?? 100}
-                        onChange={(e) =>
-                          setS((p) => ({
-                            ...p,
-                            twitter_min_followers: parseInt(e.target.value, 10) || 0,
-                          }))
-                        }
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
+                    {[
+                      { label: '点赞>=', key: 'twitter_min_likes' },
+                      { label: '转发>=', key: 'twitter_min_retweets' },
+                      { label: '浏览>=', key: 'twitter_min_views' },
+                      { label: '作者粉丝>=', key: 'twitter_min_followers' },
+                    ].map(({ label, key }) => (
+                      <div key={key} className="space-y-1.5">
+                        <label className="text-xs text-muted-foreground block">{label}</label>
+                        <Input
+                          type="number" min={0}
+                          value={s[key] ?? 0}
+                          onChange={(e) => setS((p) => ({ ...p, [key]: parseInt(e.target.value, 10) || 0 }))}
+                          className="bg-white/[0.04] border-white/[0.08]"
+                        />
+                      </div>
+                    ))}
                     <div className="space-y-1.5 sm:col-span-2 lg:col-span-4">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={s.twitter_exclude_replies !== 'false'}
-                          onChange={(e) =>
-                            setS((p) => ({
-                              ...p,
-                              twitter_exclude_replies: e.target.checked ? 'true' : 'false',
-                            }))
-                          }
-                          className="rounded border-white/20 bg-white/5"
+                          onChange={(e) => setS((p) => ({ ...p, twitter_exclude_replies: e.target.checked ? 'true' : 'false' }))}
+                          className="rounded border-white/20 bg-white/[0.04] accent-[hsl(174,100%,42%)]"
                         />
                         <span className="text-sm text-foreground">排除回复推文（仅保留原创）</span>
                       </label>
@@ -484,9 +311,7 @@ export default function SettingsPage() {
                   </div>
                 </motion.div>
               )}
-              <Button onClick={saveSettings} className="mt-5">
-                保存
-              </Button>
+              <Button onClick={saveSettings} className="mt-5">保存</Button>
             </CardContent>
           </Card>
         </div>
