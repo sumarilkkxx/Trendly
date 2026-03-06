@@ -56,7 +56,7 @@ function buildTimeConditions(timeRange) {
   };
 }
 
-// 排序：latest_discovery | latest_published | popularity | importance | relevance
+// 排序：latest_discovery | latest_published | popularity | importance | relevance | dashboard_priority
 function buildOrderBy(sort) {
   switch (sort) {
     case 'latest_published':
@@ -72,6 +72,19 @@ function buildOrderBy(sort) {
         WHEN 'urgent' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END DESC, id DESC`;
     case 'relevance':
       return 'ORDER BY COALESCE(relevance_score, 0) DESC, id DESC';
+    case 'dashboard_priority':
+      return `ORDER BY
+        CASE COALESCE(authenticity, 'verified')
+          WHEN 'suspected_false' THEN 0 ELSE 1 END DESC,
+        CASE COALESCE(importance, 'medium')
+          WHEN 'urgent' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END DESC,
+        (
+          COALESCE(like_count, 0) * 10 + COALESCE(retweet_count, 0) * 5
+          + (log10(MAX(COALESCE(view_count, 0), 1)) * 2)
+        ) DESC,
+        COALESCE(relevance_score, 0) DESC,
+        COALESCE(published_at, created_at) DESC,
+        id DESC`;
     case 'latest_discovery':
     default:
       return 'ORDER BY created_at DESC, id DESC';

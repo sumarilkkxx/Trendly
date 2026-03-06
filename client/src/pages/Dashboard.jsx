@@ -15,7 +15,7 @@ export default function Dashboard() {
 
   const loadHotspots = useCallback(async (signal) => {
     try {
-      const hp = await api.hotspots.list({ limit: 9, sort: 'latest_discovery' }, { signal });
+      const hp = await api.hotspots.list({ limit: 9, sort: 'dashboard_priority' }, { signal });
       if (signal?.aborted) return;
       setHotspots((hp.items ?? []).map((h) => ({ ...h, link: h.url, description: h.summary })));
     } catch (e) {
@@ -83,38 +83,58 @@ export default function Dashboard() {
   };
 
   return (
-    <PageMotion className="space-y-8">
-      <AuroraBackground>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-              第一时间发现 AI 热点
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              简洁、高效、永不落伍 · 基于 OpenRouter 智能过滤
-            </p>
+    <PageMotion className="space-y-10">
+      <AuroraBackground className="rounded-[28px] px-4 py-4 sm:px-6 sm:py-6">
+        <section className="rounded-[28px] border border-white/10 bg-black/20 px-5 py-6 backdrop-blur-sm sm:px-7 sm:py-8 lg:px-8 lg:py-9">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
+            <div className="max-w-2xl space-y-3">
+              <span className="inline-flex w-fit items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium tracking-widest uppercase text-primary">
+                Trendly · AI Signal
+              </span>
+              <div className="space-y-2">
+                <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                  多源聚合，实时追踪 AI 前沿信号
+                </h1>
+                <p className="max-w-lg text-sm leading-6 text-muted-foreground">
+                  自动抓取 · 智能排序 · 优先展示高价值动态
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-col gap-3 sm:items-start lg:items-end">
+              <Button
+                onClick={runScan}
+                disabled={scanning}
+                className="h-11 px-5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_rgba(0,212,170,0.2)] hover:shadow-[0_0_24px_rgba(0,212,170,0.3)] transition-shadow"
+              >
+                <Zap className="size-4" />
+                {scanning ? '扫描中…' : '立即扫描'}
+              </Button>
+            </div>
           </div>
-          <Button
-            onClick={runScan}
-            disabled={scanning}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_rgba(0,212,170,0.2)] hover:shadow-[0_0_24px_rgba(0,212,170,0.3)] transition-shadow"
-          >
-            <Zap className="size-4" />
-            {scanning ? '扫描中…' : '立即扫描'}
-          </Button>
-        </div>
 
-        <BentoGrid className="mb-8">
-          {statItems.map(({ label, value, icon: Icon }) => (
-            <BentoGridItem key={label} icon={<Icon />} title={label}>
-              <span className="text-2xl font-bold text-primary tabular-nums mt-1">{value}</span>
-            </BentoGridItem>
-          ))}
-        </BentoGrid>
+          <BentoGrid className="mt-8 gap-5 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3">
+            {statItems.map(({ label, value, icon: Icon }) => (
+              <BentoGridItem
+                key={label}
+                icon={<Icon />}
+                title={label}
+                className="min-h-[148px] bg-white/[0.03] px-1"
+              >
+                <span className="mt-3 text-3xl font-bold text-primary tabular-nums">{value}</span>
+              </BentoGridItem>
+            ))}
+          </BentoGrid>
+        </section>
 
-        <div>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <h2 className="font-display text-lg font-semibold text-foreground">最新热点</h2>
+        <section className="mt-10 space-y-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <h2 className="font-display text-xl font-semibold text-foreground">Top 9 · 前沿焦点</h2>
+              <p className="text-sm text-muted-foreground">
+                按真实性 × 重要程度 × 热度综合排序
+              </p>
+            </div>
             <Link
               to="/hotspots"
               className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
@@ -126,17 +146,17 @@ export default function Dashboard() {
 
           {hotspots.length === 0 ? (
             <div
-              className="rounded-xl border border-white/10 bg-white/[0.02] py-16 text-center"
+              className="rounded-2xl border border-white/10 bg-white/[0.02] py-16 text-center"
               style={emptyStateStyle}
             >
-              <p className="text-muted-foreground text-sm">
-                暂无热点 · 添加消息源后点击「立即扫描」
+              <p className="text-sm text-muted-foreground">
+                暂无信号 · 添加消息源后点击「立即扫描」开始追踪
               </p>
             </div>
           ) : (
-            <HoverEffect items={hotspots} onDeleteItem={handleDeleteItem} />
+            <HoverEffect items={hotspots} className="pt-1" onDeleteItem={handleDeleteItem} />
           )}
-        </div>
+        </section>
       </AuroraBackground>
     </PageMotion>
   );
