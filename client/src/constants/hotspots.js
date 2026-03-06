@@ -1,5 +1,6 @@
 // 排序选项
 export const SORT_OPTIONS = [
+  { value: 'dashboard_priority', label: '仪表盘优先级' },
   { value: 'latest_discovery', label: '最新发现' },
   { value: 'latest_published', label: '最新发布' },
   { value: 'importance', label: '重要程度优先' },

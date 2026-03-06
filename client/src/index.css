@@ -4,12 +4,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ───────────────────────────────────────────────
+   Trendly — Futuristic Tech Design System
+   UI/UX Pro Max: cyberpunk / sci-fi / dark-tech
+   ─────────────────────────────────────────────── */
+
 html {
-  /* 整体页面渐变背景：深蓝底 + 顶部微光 + 底部青调 */
   background:
-    radial-gradient(ellipse 120% 80% at 50% -30%, hsl(222 50% 12% / 0.5), transparent 50%),
-    radial-gradient(ellipse 80% 60% at 80% 100%, hsl(174 60% 15% / 0.15), transparent 45%),
-    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(222 48% 5%) 100%);
+    radial-gradient(ellipse 120% 80% at 50% -20%, hsl(222 50% 12% / 0.6), transparent 55%),
+    radial-gradient(ellipse 80% 60% at 85% 100%, hsl(174 60% 15% / 0.18), transparent 50%),
+    radial-gradient(ellipse 60% 50% at 10% 80%, hsl(240 50% 18% / 0.12), transparent 45%),
+    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(222 50% 4%) 100%);
   background-attachment: fixed;
   min-height: 100vh;
 }
@@ -17,124 +22,219 @@ html {
 body {
   @apply bg-transparent text-foreground antialiased;
   font-family: 'JetBrains Mono', monospace;
-  line-height: 1.5;
+  line-height: 1.6;
   min-height: 100vh;
 }
 
 .font-display {
   font-family: 'Orbitron', sans-serif;
+  letter-spacing: 0.02em;
 }
 
-/* UI/UX Pro Max: respect reduced motion */
+/* ── Animations ────────────────────────────── */
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes border-rotate {
+  0% { --border-angle: 0deg; }
+  100% { --border-angle: 360deg; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 25%, hsl(174 100% 42% / 0.08) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+.animate-float { animation: float 6s ease-in-out infinite; }
+
+/* ── Reduced Motion ────────────────────────── */
+
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }
 
-/* Focus visible for keyboard nav (a11y) */
+/* ── Focus States (a11y) ───────────────────── */
+
 .focus-ring:focus-visible {
-  @apply outline-none ring-2 ring-cyber-accent/50 ring-offset-2 ring-offset-background;
+  @apply outline-none ring-2 ring-primary/50 ring-offset-2 ring-offset-background;
 }
 
-/* 下拉选项清晰度：深色背景下选项文字需足够对比度 */
+/* ── Utility: Glow Effects ─────────────────── */
+
+.glow-border {
+  box-shadow:
+    0 0 0 1px hsl(174 100% 42% / 0.15),
+    0 0 15px hsl(174 100% 42% / 0.07),
+    inset 0 0 15px hsl(174 100% 42% / 0.03);
+}
+.glow-border-hover:hover {
+  box-shadow:
+    0 0 0 1px hsl(174 100% 42% / 0.3),
+    0 0 25px hsl(174 100% 42% / 0.12),
+    inset 0 0 20px hsl(174 100% 42% / 0.05);
+}
+
+/* ── Utility: Glass Card ───────────────────── */
+
+.glass-card {
+  @apply relative overflow-hidden rounded-2xl border border-white/[0.08] transition-all duration-300;
+  background: linear-gradient(
+    135deg,
+    hsl(222 35% 9% / 0.8) 0%,
+    hsl(222 40% 7% / 0.9) 100%
+  );
+  backdrop-filter: blur(12px);
+}
+.glass-card:hover {
+  border-color: hsl(174 100% 42% / 0.2);
+  background: linear-gradient(
+    135deg,
+    hsl(222 35% 10% / 0.85) 0%,
+    hsl(222 40% 8% / 0.95) 100%
+  );
+}
+
+/* ── Utility: Scanline Overlay ─────────────── */
+
+.scanline-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    hsl(174 100% 42% / 0.015) 2px,
+    hsl(174 100% 42% / 0.015) 4px
+  );
+  z-index: 1;
+}
+
+/* ── Utility: Tech Grid Background ─────────── */
+
+.tech-grid {
+  background-image:
+    linear-gradient(hsl(174 100% 42% / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(174 100% 42% / 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* ── Form Controls ─────────────────────────── */
+
 select option {
-  background: hsl(222 40% 12%);
+  background: hsl(222 40% 10%);
   color: hsl(210 40% 96%);
   padding: 0.5rem;
 }
 
-/* 热点筛选：统一表单控件样式（玻璃态、过渡、焦点环） */
 .hotspot-form-control {
   @apply min-h-[44px] px-3 rounded-xl border transition-all duration-200 cursor-pointer;
-  @apply bg-white/[0.04] border-white/10;
-  @apply hover:bg-white/[0.06] hover:border-white/15;
-  @apply focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.06];
+  @apply bg-white/[0.04] border-white/[0.08];
+  @apply hover:bg-white/[0.07] hover:border-white/15;
+  @apply focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.07];
   @apply text-foreground text-[15px];
 }
 select.hotspot-form-control {
   @apply pr-10 appearance-none bg-no-repeat bg-[length:1rem] bg-[right_0.75rem_center];
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2300d4aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 .hotspot-form-control::placeholder {
-  @apply text-foreground/45;
+  @apply text-foreground/40;
 }
 
-/* 搜索框增强 */
 .hotspot-search {
   @apply pl-10 pr-4 rounded-xl;
-  @apply bg-white/[0.04] border border-white/10;
-  @apply hover:bg-white/[0.06] hover:border-white/15;
+  @apply bg-white/[0.04] border border-white/[0.08];
+  @apply hover:bg-white/[0.07] hover:border-white/15;
   @apply focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:border-primary/40;
   @apply transition-all duration-200;
 }
 
-/* 下拉触发器（数据来源等多选） */
 .hotspot-select-trigger {
   @apply min-h-[44px] w-full flex items-center justify-between gap-2 rounded-xl border px-3;
-  @apply bg-white/[0.04] border-white/10;
-  @apply hover:bg-white/[0.06] hover:border-white/15;
+  @apply bg-white/[0.04] border-white/[0.08];
+  @apply hover:bg-white/[0.07] hover:border-white/15;
   @apply focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20;
   @apply transition-all duration-200 cursor-pointer;
 }
 
-/* 多选下拉内容区 */
 .hotspot-popover-content {
-  @apply rounded-xl border border-white/15 bg-[hsl(222_38%_11%)];
-  @apply shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.04)];
-  @apply p-2 backdrop-blur-sm;
+  @apply rounded-xl border border-white/[0.12] bg-[hsl(222_40%_9%)];
+  @apply shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(0,212,170,0.04)];
+  @apply p-2 backdrop-blur-md;
 }
 
-/* react-day-picker 深色主题 */
+/* ── react-day-picker dark theme ───────────── */
+
 .rdp-dark {
   --rdp-accent-color: hsl(174 100% 42%);
   --rdp-accent-background-color: hsl(174 100% 42% / 0.2);
   --rdp-today-color: hsl(174 100% 42%);
 }
-.rdp-dark .rdp-day_button {
-  color: hsl(210 40% 96%);
-}
-.rdp-dark .rdp-weekday {
-  color: hsl(210 40% 96% / 0.7);
-}
+.rdp-dark .rdp-day_button { color: hsl(210 40% 96%); }
+.rdp-dark .rdp-weekday { color: hsl(210 40% 96% / 0.7); }
 .rdp-dark .rdp-month_caption,
-.rdp-dark .rdp-caption_label {
-  color: hsl(210 40% 96%);
+.rdp-dark .rdp-caption_label { color: hsl(210 40% 96%); }
+
+/* ── Custom Scrollbar ──────────────────────── */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: hsl(174 100% 42% / 0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(174 100% 42% / 0.3);
 }
 
+/* ── Theme Variables ───────────────────────── */
+
 @layer base {
-  /* Dark only: 深色底 + 青/蓝霓虹 - 前沿热点工具风格 */
   :root {
-    --background: 222 45% 7%;
+    --background: 222 47% 6%;
     --foreground: 210 40% 96%;
-    --card: 222 35% 9%;
+    --card: 222 38% 8%;
     --card-foreground: 210 40% 96%;
-    --popover: 222 35% 9%;
+    --popover: 222 38% 8%;
     --popover-foreground: 210 40% 96%;
     --primary: 174 100% 42%;
     --primary-foreground: 222 47% 6%;
-    --secondary: 222 25% 14%;
+    --secondary: 222 25% 13%;
     --secondary-foreground: 210 40% 96%;
-    --muted: 222 20% 14%;
+    --muted: 222 20% 13%;
     --muted-foreground: 215 16% 57%;
-    --accent: 222 25% 14%;
+    --accent: 240 50% 60%;
     --accent-foreground: 210 40% 96%;
     --destructive: 0 62% 45%;
     --destructive-foreground: 210 40% 96%;
-    --border: 222 20% 18%;
-    --input: 222 20% 18%;
+    --border: 222 20% 16%;
+    --input: 222 20% 16%;
     --ring: 174 100% 42%;
-    --sidebar-background: 222 48% 5%;
+    --radius: 0.75rem;
+    --sidebar-background: 222 50% 4%;
     --sidebar-foreground: 210 40% 96%;
     --sidebar-primary: 174 100% 42%;
     --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 25% 14%;
+    --sidebar-accent: 222 25% 12%;
     --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 222 20% 16%;
+    --sidebar-border: 222 20% 14%;
     --sidebar-ring: 174 100% 42%;
   }
 }

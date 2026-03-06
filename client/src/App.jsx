@@ -1,7 +1,7 @@
 import { cloneElement } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, useLocation, useMatch, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { LayoutGrid, Flame, Settings, Info } from 'lucide-react';
+import { LayoutGrid, Flame, Settings, Info, Activity } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Hotspots from './pages/Hotspots';
 import SettingsPage from './pages/Settings';
@@ -68,20 +68,27 @@ function NavItem({ to, end, label, icon: Icon }) {
 function AppSidebar() {
   return (
     <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border dark:border-white/10">
-        <div className="flex items-center gap-2 px-2 py-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_12px_rgba(0,212,170,0.3)]">
-            <span className="font-display text-sm font-bold">T</span>
+      <SidebarHeader className="border-b border-white/[0.06]">
+        <div className="flex items-center gap-3 px-3 py-5">
+          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-[0_0_20px_rgba(0,212,170,0.2)]">
+            <Activity className="size-5" />
+            <div className="absolute inset-0 rounded-xl border border-primary/30" />
           </div>
           <div className="flex flex-col">
-            <span className="font-display text-sm font-semibold">Trendly</span>
-            <span className="text-xs text-muted-foreground">AI 热点监控</span>
+            <span className="font-display text-sm font-semibold tracking-wider text-foreground">
+              TRENDLY
+            </span>
+            <span className="text-[11px] tracking-wide text-primary/70">
+              AI Signal Monitor
+            </span>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>导航</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground/60">
+            Navigation
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {nav.map((item) => (
@@ -91,9 +98,18 @@ function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border dark:border-white/10">
-        <div className="px-2 py-3 text-xs text-muted-foreground">
-          基于 OpenRouter · Twitter · Reddit
+      <SidebarFooter className="border-t border-white/[0.06]">
+        <div className="px-3 py-3 space-y-1">
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+            </span>
+            <span className="text-[11px] text-primary/80 tracking-wide">System Online</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground/50 tracking-wide">
+            OpenRouter · Twitter · Reddit · HN
+          </p>
         </div>
       </SidebarFooter>
     </Sidebar>
@@ -105,11 +121,11 @@ function Layout({ children }) {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-white/10 px-4 md:hidden bg-background/80 backdrop-blur-sm">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-white/[0.06] px-4 md:hidden bg-background/90 backdrop-blur-md">
           <SidebarTrigger />
-          <span className="font-semibold">Trendly</span>
+          <span className="font-display text-sm font-semibold tracking-wider">TRENDLY</span>
         </header>
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
           <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </SidebarInset>

@@ -20,10 +20,12 @@ function parseSetting(key, value) {
     return SETTING_DEFAULTS[key] ?? '';
   }
   if (key === 'scan_interval_minutes' || key === 'notify_interval_hours') {
-    return parseInt(value, 10) || (key.includes('scan') ? 30 : 4);
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? (key.includes('scan') ? 30 : 4) : parsed;
   }
   if (key.startsWith('twitter_min_')) {
-    return parseInt(value, 10) || SETTING_DEFAULTS[key] ?? 0;
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? (SETTING_DEFAULTS[key] ?? 0) : parsed;
   }
   if (key === 'twitter_exclude_replies') {
     return value === 'false' ? 'false' : 'true';
