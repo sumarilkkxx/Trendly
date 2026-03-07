@@ -7,7 +7,7 @@ client/dist/
 .DS_Store
 MASTER.md
 .cursor
-design-system
+design-system/
 *.log
-docs
+docs/
 test/

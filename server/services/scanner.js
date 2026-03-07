@@ -165,8 +165,9 @@ export async function runScan() {
     INSERT INTO hotspots (
       source, external_id, title, summary, url, raw_content, published_at,
       like_count, retweet_count, view_count, relevance_score, matched_keywords,
-      importance, authenticity
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      importance, authenticity, ai_description, ai_reason, author, ai_tags,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     ON CONFLICT(source, external_id) DO UPDATE SET
       summary = excluded.summary,
       raw_content = excluded.raw_content,
@@ -176,7 +177,12 @@ export async function runScan() {
       relevance_score = excluded.relevance_score,
       matched_keywords = excluded.matched_keywords,
       importance = excluded.importance,
-      authenticity = excluded.authenticity
+      authenticity = excluded.authenticity,
+      ai_description = excluded.ai_description,
+      ai_reason = excluded.ai_reason,
+      author = excluded.author,
+      ai_tags = excluded.ai_tags,
+      updated_at = datetime('now')
   `);
 
   let newCount = 0;
@@ -185,23 +191,32 @@ export async function runScan() {
   for (const item of toProcess) {
     const text = [item.title, item.summary, item.rawContent].filter(Boolean).join(' ');
     const matchedKws = getMatchedKeywords(text, kwList);
-    const { keep, summary, relevance, importance, authenticity } = await filterAndSummarize(item, kwList);
-    if (!keep) continue;
+    const aiResult = await filterAndSummarize(item, kwList);
+    if (!aiResult.keep) continue;
+
+    if (newCount < 3) {
+      console.log(`[Scanner] AI result sample — reason: "${(aiResult.reason || '').slice(0, 60)}", tags: [${(aiResult.tags || []).join(',')}], desc len: ${(aiResult.description || '').length}`);
+    }
 
     const likes = item.likeCount ?? null;
     const retweets = item.retweetCount ?? null;
     const views = item.viewCount ?? null;
     const matchedKeywordsStr = matchedKws.length ? matchedKws.join(',') : '';
-    const relevanceVal = computeRelevanceScore(relevance, item, matchedKws, kwList);
-    const importanceVal = importance || 'medium';
-    const authenticityVal = authenticity || 'verified';
+    const relevanceVal = computeRelevanceScore(aiResult.relevance, item, matchedKws, kwList);
+    const importanceVal = aiResult.importance || 'medium';
+    const authenticityVal = aiResult.authenticity || 'verified';
+
+    const aiDesc = aiResult.description || item.rawContent?.slice(0, 300) || '';
+    const aiReason = aiResult.reason || '';
+    const authorVal = item.author || '';
+    const aiTagsVal = Array.isArray(aiResult.tags) ? aiResult.tags.join(',') : '';
 
     try {
       const result = upsertStmt.run(
         item.source,
         String(item.externalId),
         item.title,
-        summary || item.summary,
+        aiResult.summary || item.summary,
         item.url,
         item.rawContent || '',
         item.publishedAt,
@@ -211,7 +226,11 @@ export async function runScan() {
         relevanceVal,
         matchedKeywordsStr,
         importanceVal,
-        authenticityVal
+        authenticityVal,
+        aiDesc,
+        aiReason,
+        authorVal,
+        aiTagsVal
       );
       if (result.changes > 0) newCount++;
     } catch (e) {
