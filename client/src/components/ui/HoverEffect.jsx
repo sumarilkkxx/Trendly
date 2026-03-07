@@ -94,9 +94,9 @@ function CardHeader({ item, sourceColor, onDelete, onDeleteItem }) {
 
   return (
     <div className="mb-3 space-y-1.5">
-      {/* Row 1: Source + Time + Actions */}
+      {/* Row 1: Source + Publish Time + Crawl Time (same line) + Actions */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0 flex-1 flex-nowrap">
           <span
             className="size-2 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-transparent"
             style={{ backgroundColor: sourceColor, boxShadow: `0 0 6px ${sourceColor}60` }}
