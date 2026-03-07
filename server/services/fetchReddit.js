@@ -40,6 +40,10 @@ export async function fetchReddit() {
           likeCount: post.ups ?? post.score ?? 0,
           retweetCount: post.num_comments ?? 0,
           viewCount: 0,
+          author: (() => {
+            const name = typeof post.author === 'string' ? post.author : (post.author?.name || String(post.author || ''));
+            return name && name !== '[deleted]' && name !== 'undefined' ? `u/${name}` : '';
+          })(),
         });
       }
     } catch (e) {

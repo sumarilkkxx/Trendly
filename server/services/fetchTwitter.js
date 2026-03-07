@@ -35,6 +35,21 @@ export async function fetchTwitter(keywords = [], filterConfig) {
       const tweets = data.tweets || [];
       for (const t of tweets) {
         if (!passesTwitterFilter(t, config)) continue;
+        const a = t.author || {};
+        const handle = a.userName || a.username || a.screen_name || a.name || '';
+        const displayName = a.name || a.displayName || '';
+        const followers = a.followers ?? a.followersCount ?? a.follower_count ?? 0;
+        let authorStr = '';
+        if (handle) {
+          authorStr = `@${handle}`;
+          if (displayName && displayName !== handle) authorStr = `${displayName} (@${handle})`;
+          if (followers > 0) {
+            const fmtF = followers >= 1000000 ? `${(followers / 1000000).toFixed(1)}M`
+              : followers >= 1000 ? `${(followers / 1000).toFixed(1)}k`
+              : String(followers);
+            authorStr += ` · ${fmtF} followers`;
+          }
+        }
         items.push({
           source: 'twitter',
           externalId: t.id,
@@ -46,6 +61,7 @@ export async function fetchTwitter(keywords = [], filterConfig) {
           likeCount: t.likeCount ?? 0,
           retweetCount: t.retweetCount ?? 0,
           viewCount: t.viewCount ?? 0,
+          author: authorStr,
         });
       }
       if (!data.has_next_page || !data.next_cursor) break;

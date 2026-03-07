@@ -69,6 +69,25 @@ db.exec(`
   }
 });
 
+// 迁移：添加 AI 描述、AI 分析理由、作者、AI 话题标签字段（Batch 3）
+['ai_description', 'ai_reason', 'author', 'ai_tags'].forEach((col) => {
+  try {
+    db.exec(`ALTER TABLE hotspots ADD COLUMN ${col} TEXT`);
+  } catch (e) {
+    if (!e.message?.includes('duplicate column')) throw e;
+  }
+});
+
+// 迁移：添加 updated_at 字段，记录每次扫描更新时间（Batch 4）
+try {
+  db.exec(`ALTER TABLE hotspots ADD COLUMN updated_at TEXT`);
+} catch (e) {
+  if (!e.message?.includes('duplicate column')) throw e;
+}
+try {
+  db.exec(`UPDATE hotspots SET updated_at = created_at WHERE updated_at IS NULL`);
+} catch (e) { /* ignore */ }
+
 // 迁移：将旧 relevance_score 1-5 转为 0-100
 try {
   db.exec(`UPDATE hotspots SET relevance_score = relevance_score * 20 WHERE relevance_score BETWEEN 1 AND 5`);

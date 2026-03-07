@@ -28,6 +28,7 @@ export async function fetchDuckDuckGo(keywords = []) {
           url: article.url || '',
           rawContent: ((article.title || '') + ' ' + (article.excerpt || '')).slice(0, 2000),
           publishedAt: article.date || null,
+          author: article.source || '',
         });
       }
     } catch (e) {
@@ -51,6 +52,7 @@ export async function fetchDuckDuckGo(keywords = []) {
           url: r.url || '',
           rawContent: ((r.title || '') + ' ' + (r.description || '')).slice(0, 2000),
           publishedAt: null,
+          author: '',
         });
       }
     } catch (e) {

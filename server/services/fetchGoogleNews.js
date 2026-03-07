@@ -28,6 +28,7 @@ export async function fetchGoogleNews(keywords = []) {
           url: item.link || '',
           rawContent: (item.contentSnippet || item.content || '').slice(0, 2000),
           publishedAt: item.isoDate || item.pubDate || null,
+          author: item.creator || item['dc:creator'] || '',
         });
       }
     } catch (e) {

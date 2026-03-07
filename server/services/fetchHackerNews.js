@@ -36,6 +36,7 @@ export async function fetchHackerNews(keywords = []) {
           likeCount: hit.points ?? 0,
           retweetCount: hit.num_comments ?? 0,
           viewCount: 0,
+          author: hit.author || '',
         });
       }
     } catch (e) {

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { HoverEffect } from '@/components/ui/HoverEffect';
 import { AuroraBackground } from '@/components/ui/AuroraBackground';
-import { Search, Filter, Trash2, ArrowUpDown, ChevronDown, Check, Radio } from 'lucide-react';
+import { Search, Filter, Trash2, ArrowUpDown, ChevronDown, Check, Radio, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   SORT_OPTIONS,
@@ -29,6 +29,7 @@ export default function Hotspots() {
   const [importance, setImportance] = useState('');
   const [relevanceRange, setRelevanceRange] = useState('');
   const [keywords, setKeywords] = useState([]);
+  const [allReasonsExpanded, setAllReasonsExpanded] = useState(false);
 
   useEffect(() => {
     api.keywords
@@ -72,6 +73,9 @@ export default function Hotspots() {
     ...h,
     link: h.url,
     description: h.summary,
+    aiDescription: h.ai_description,
+    aiReason: h.ai_reason,
+    aiTags: h.ai_tags,
   }));
 
   const handleDeleteItem = async (item) => {
@@ -314,13 +318,29 @@ export default function Hotspots() {
 
           {/* Results */}
           <div>
+            {items.length > 0 && (
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  共 <span className="text-foreground font-medium">{data.total}</span> 条热点
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground gap-1.5"
+                  onClick={() => setAllReasonsExpanded((v) => !v)}
+                >
+                  <ChevronsUpDown className="size-3.5" />
+                  {allReasonsExpanded ? '收起所有分析' : '展开所有分析'}
+                </Button>
+              </div>
+            )}
             {items.length === 0 ? (
               <div className="tech-grid rounded-2xl border border-white/[0.06] py-20 text-center">
                 <Radio className="mx-auto mb-3 size-6 text-primary/20" />
                 <p className="text-muted-foreground text-sm">暂无热点</p>
               </div>
             ) : (
-              <HoverEffect items={items} onDeleteItem={handleDeleteItem} />
+              <HoverEffect items={items} onDeleteItem={handleDeleteItem} allReasonsExpanded={allReasonsExpanded} />
             )}
 
             {data.total > data.limit && (

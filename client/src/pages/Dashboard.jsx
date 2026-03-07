@@ -17,7 +17,14 @@ export default function Dashboard() {
     try {
       const hp = await api.hotspots.list({ limit: 9, sort: 'dashboard_priority' }, { signal });
       if (signal?.aborted) return;
-      setHotspots((hp.items ?? []).map((h) => ({ ...h, link: h.url, description: h.summary })));
+      setHotspots((hp.items ?? []).map((h) => ({
+        ...h,
+        link: h.url,
+        description: h.summary,
+        aiDescription: h.ai_description,
+        aiReason: h.ai_reason,
+        aiTags: h.ai_tags,
+      })));
     } catch (e) {
       if (e?.name === 'AbortError' || signal?.aborted) return;
       console.error(e);
@@ -89,7 +96,7 @@ export default function Dashboard() {
                 </span>
               </div>
               <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                多源聚合，实时追踪 AI 前沿信号
+                多源聚合，实时追踪 AI 热点
               </h1>
               <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
                 自动抓取 · 智能排序 · 优先展示高价值动态
