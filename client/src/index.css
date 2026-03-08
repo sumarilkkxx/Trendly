@@ -180,6 +180,55 @@ select.hotspot-form-control {
   @apply p-2 backdrop-blur-md;
 }
 
+/* ── Hotspot Filter Panel: 高对比度配色 (UI/UX Pro Max) ──
+   - 背景/边框可见，标签与正文对比度 ≥4.5:1
+   - 控件边界清晰，hover/focus 状态明确
+   ───────────────────────────────────────────────────── */
+.hotspot-filter-panel {
+  @apply rounded-xl border;
+  background: linear-gradient(180deg, hsl(222 28% 12% / 0.95) 0%, hsl(222 25% 10% / 0.98) 100%);
+  border-color: hsl(215 25% 22%);
+  box-shadow: 0 1px 0 0 hsl(215 20% 28% / 0.5);
+}
+.hotspot-filter-panel .hotspot-filter-label {
+  @apply text-[11px] font-semibold uppercase tracking-wider;
+  color: hsl(210 25% 85%);
+}
+.hotspot-filter-panel .hotspot-form-control {
+  background-color: hsl(222 25% 14%);
+  border-color: hsl(215 22% 28%);
+  color: hsl(210 40% 98%);
+  @apply hover:bg-[hsl(222_25%_17%)] hover:border-[hsl(215_25%_35%)];
+  @apply focus:border-[hsl(174_100%_42%)] focus:ring-2 focus:ring-[hsl(174_100%_42%_/_.35)];
+}
+.hotspot-filter-panel .hotspot-form-control::placeholder {
+  color: hsl(215 15% 55%);
+}
+.hotspot-filter-panel .hotspot-search {
+  background-color: hsl(222 25% 14%);
+  border-color: hsl(215 22% 28%);
+  color: hsl(210 40% 98%);
+  @apply hover:bg-[hsl(222_25%_17%)] hover:border-[hsl(215_25%_35%)];
+  @apply focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40;
+}
+.hotspot-filter-panel .hotspot-search::placeholder {
+  color: hsl(215 15% 55%);
+}
+.hotspot-filter-panel .hotspot-select-trigger {
+  background-color: hsl(222 25% 14%);
+  border-color: hsl(215 22% 28%);
+  color: hsl(210 40% 98%);
+  @apply hover:bg-[hsl(222_25%_17%)] hover:border-[hsl(215_25%_35%)];
+  @apply focus:border-primary focus:ring-2 focus:ring-primary/35;
+}
+.hotspot-filter-panel .hotspot-select-trigger .text-muted-foreground {
+  color: hsl(215 15% 55%);
+}
+.hotspot-filter-panel .hotspot-section-title {
+  color: hsl(210 25% 78%);
+  @apply text-xs font-semibold uppercase tracking-wider;
+}
+
 /* ── react-day-picker dark theme ───────────── */
 
 .rdp-dark {

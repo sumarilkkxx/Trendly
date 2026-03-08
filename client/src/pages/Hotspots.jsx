@@ -122,41 +122,46 @@ export default function Hotspots() {
             </p>
           </div>
 
-          {/* Filter Panel */}
-          <Card>
-            <CardContent className="pt-6 pb-6 space-y-6">
-              {/* Search + Actions */}
-              <div className="flex flex-wrap gap-4 items-center justify-between">
-                <div className="relative flex-1 min-w-[220px] max-w-md">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-primary/40 pointer-events-none" />
-                  <Input
-                    type="search"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="搜索标题/摘要"
-                    className="hotspot-search h-11 text-[15px] min-h-[44px]"
-                    aria-label="搜索标题或摘要"
-                  />
+          {/* Filter Panel — 高对比度配色 (UI/UX Pro Max) */}
+          <Card className="border-0 shadow-none bg-transparent p-0">
+            <CardContent className="p-0">
+              <div className="hotspot-filter-panel p-5 sm:p-6 space-y-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Filter className="size-4 text-primary shrink-0" aria-hidden />
+                  <span className="hotspot-section-title">排序与筛选</span>
                 </div>
-                {data.total > 0 && (
-                  <Button
-                    variant="destructive"
-                    className="min-h-[44px] px-5 py-2.5 whitespace-nowrap shrink-0"
-                    onClick={handleClearAll}
-                  >
-                    <Trash2 className="size-4" />
-                    删除全部
-                  </Button>
-                )}
-              </div>
+                {/* Search + Actions */}
+                <div className="flex flex-wrap gap-4 items-center justify-between">
+                  <div className="relative flex-1 min-w-[220px] max-w-md">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-primary/70 pointer-events-none" aria-hidden />
+                    <Input
+                      type="search"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="搜索标题/摘要"
+                      className="hotspot-search h-11 text-[15px] min-h-[44px]"
+                      aria-label="搜索标题或摘要"
+                    />
+                  </div>
+                  {data.total > 0 && (
+                    <Button
+                      variant="destructive"
+                      className="min-h-[44px] px-5 py-2.5 whitespace-nowrap shrink-0"
+                      onClick={handleClearAll}
+                    >
+                      <Trash2 className="size-4" />
+                      删除全部
+                    </Button>
+                  )}
+                </div>
 
-              {/* Sort + Source */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground/70 mb-2">
-                    <ArrowUpDown className="size-3.5 text-primary/60 shrink-0" />
-                    排序
-                  </label>
+                {/* Sort + Source */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="hotspot-filter-label flex items-center gap-2 mb-2">
+                      <ArrowUpDown className="size-3.5 text-primary shrink-0" aria-hidden />
+                      排序
+                    </label>
                   <select
                     value={sort}
                     onChange={(e) => setSort(e.target.value)}
@@ -169,8 +174,8 @@ export default function Hotspots() {
                   </select>
                 </div>
                 <div>
-                  <label className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground/70 mb-2">
-                    <Filter className="size-3.5 text-primary/60 shrink-0" />
+                  <label className="hotspot-filter-label flex items-center gap-2 mb-2">
+                    <Filter className="size-3.5 text-primary shrink-0" aria-hidden />
                     数据来源
                   </label>
                   <Popover.Root>
@@ -183,7 +188,7 @@ export default function Hotspots() {
                         <span
                           className={cn(
                             'min-w-0 flex-1 truncate text-left',
-                            sources.length ? 'text-foreground' : 'text-foreground/50'
+                            sources.length ? '' : 'text-muted-foreground'
                           )}
                           title={sources.length && sources.length < SOURCE_OPTIONS.length
                             ? SOURCE_OPTIONS.filter((o) => sources.includes(o.value)).map((o) => o.label).join('、')
@@ -233,7 +238,7 @@ export default function Hotspots() {
               {/* Keyword + Time */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground/70 mb-2">关联关键词</label>
+                  <label className="hotspot-filter-label block mb-2">关联关键词</label>
                   {keywords.length > 0 ? (
                     <select
                       value={keyword}
@@ -257,7 +262,7 @@ export default function Hotspots() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground/70 mb-2">时间范围</label>
+                  <label className="hotspot-filter-label block mb-2">时间范围</label>
                   <select
                     value={timeRange}
                     onChange={(e) => setTimeRange(e.target.value)}
@@ -272,9 +277,9 @@ export default function Hotspots() {
               </div>
 
               {/* Quality Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-5 border-t border-white/[0.06]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-5 border-t border-[hsl(215_25%_22%)]">
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground/70 mb-2">真实性</label>
+                  <label className="hotspot-filter-label block mb-2">真实性</label>
                   <select
                     value={authenticity}
                     onChange={(e) => setAuthenticity(e.target.value)}
@@ -287,7 +292,7 @@ export default function Hotspots() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground/70 mb-2">重要程度</label>
+                  <label className="hotspot-filter-label block mb-2">重要程度</label>
                   <select
                     value={importance}
                     onChange={(e) => setImportance(e.target.value)}
@@ -300,7 +305,7 @@ export default function Hotspots() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground/70 mb-2">相关性</label>
+                  <label className="hotspot-filter-label block mb-2">相关性</label>
                   <select
                     value={relevanceRange}
                     onChange={(e) => setRelevanceRange(e.target.value)}
@@ -312,6 +317,7 @@ export default function Hotspots() {
                     ))}
                   </select>
                 </div>
+              </div>
               </div>
             </CardContent>
           </Card>
