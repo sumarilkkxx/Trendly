@@ -51,6 +51,18 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_keywords_enabled ON keywords(enabled);
 `);
 
+// 迁移：为关键词添加扩展变体存储字段
+try {
+  db.exec(`ALTER TABLE keywords ADD COLUMN variants_json TEXT`);
+} catch (e) {
+  if (!e.message?.includes('duplicate column')) throw e;
+}
+try {
+  db.exec(`ALTER TABLE keywords ADD COLUMN variants_updated_at TEXT`);
+} catch (e) {
+  if (!e.message?.includes('duplicate column')) throw e;
+}
+
 // 迁移：添加热度、相关性、匹配关键词字段（若不存在）
 ['like_count', 'retweet_count', 'view_count', 'relevance_score', 'matched_keywords'].forEach((col) => {
   try {
@@ -137,6 +149,13 @@ try {
   }
 } catch (e) {
   // ignore migration errors
+}
+
+// 迁移：为热点添加关键词级相关性信号字段（Batch 5）
+try {
+  db.exec(`ALTER TABLE hotspots ADD COLUMN keyword_signals TEXT`);
+} catch (e) {
+  if (!e.message?.includes('duplicate column')) throw e;
 }
 
 // 默认设置

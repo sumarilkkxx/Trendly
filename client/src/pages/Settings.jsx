@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuroraBackground } from '@/components/ui/AuroraBackground';
+import { Switch } from '@/components/ui/switch';
 
 const TWITTER_MODES = [
   { id: 'loose', label: '宽松模式', hint: '点赞>=5，转发>=2，浏览>=200，粉丝>=50', desc: '保留更多内容' },
@@ -25,6 +26,7 @@ export default function SettingsPage() {
   const [s, setS] = useState({
     scan_interval_minutes: 30,
     notify_interval_hours: 4,
+    notify_enabled: 'true',
     twitter_filter_mode: 'standard',
     twitter_min_likes: 10,
     twitter_min_retweets: 5,
@@ -241,6 +243,30 @@ export default function SettingsPage() {
                     className="bg-white/[0.04] border-white/[0.08]"
                   />
                   <p className="text-[11px] text-muted-foreground/50">默认 4 小时汇总</p>
+                </div>
+              </div>
+              <div className="mt-5 flex items-center justify-between max-w-md rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 shadow-[0_0_0_1px_rgba(15,23,42,0.4)]">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">邮件汇总推送</p>
+                    <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/10 px-2 py-[1px] text-[11px] text-primary/90">
+                      {s.notify_enabled !== 'false' ? '当前：已开启' : '当前：已关闭'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/70">
+                    定期将新的热点整理成一封摘要邮件发送到收件箱
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <Switch
+                    checked={s.notify_enabled !== 'false'}
+                    onCheckedChange={(checked) =>
+                      setS((p) => ({ ...p, notify_enabled: checked ? 'true' : 'false' }))
+                    }
+                  />
+                  <span className="text-[11px] text-muted-foreground">
+                    {s.notify_enabled !== 'false' ? '开启' : '关闭'}
+                  </span>
                 </div>
               </div>
               <Button onClick={saveSettings} className="mt-5">保存</Button>
