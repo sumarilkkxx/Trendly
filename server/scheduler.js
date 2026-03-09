@@ -16,6 +16,12 @@ function getNotifyInterval() {
   return Math.max(1, parseInt(row?.value, 10) || 4);
 }
 
+function isNotifyEnabled() {
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'notify_enabled'").get();
+  const v = (row?.value ?? 'true').toString().toLowerCase();
+  return v !== 'false' && v !== '0';
+}
+
 export function startScheduler() {
   const scanMins = getScanInterval();
   const notifyHrs = getNotifyInterval();
@@ -30,6 +36,10 @@ export function startScheduler() {
   });
 
   notifyTask = cron.schedule(`0 */${notifyHrs} * * *`, async () => {
+    if (!isNotifyEnabled()) {
+      console.log('[Scheduler] Email digest disabled, skip this run');
+      return;
+    }
     console.log('[Scheduler] Sending digest...');
     try {
       const rows = db.prepare('SELECT * FROM hotspots WHERE notified_at IS NULL ORDER BY created_at DESC LIMIT 50').all();
