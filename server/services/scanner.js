@@ -8,6 +8,7 @@ import { fetchGoogleNews } from './fetchGoogleNews.js';
 import { fetchDuckDuckGo } from './fetchDuckDuckGo.js';
 import { getTwitterFilterConfig } from './twitterFilter.js';
 import { filterAndSummarize } from './openRouter.js';
+import { expandKeyword } from './keywordExpand.js';
 
 /** 策略：数据采集（尽量多）→ 基础过滤（去重、时间）→ AI 深度分析（相关性、真假）→ 最终展示 */
 
@@ -15,6 +16,67 @@ function getMatchedKeywords(text, keywords) {
   if (!keywords?.length || !text) return [];
   const lower = text.toLowerCase();
   return keywords.filter((k) => lower.includes(k.toLowerCase()));
+}
+
+function buildKeywordConfigs() {
+  const rows = db.prepare('SELECT id, keyword, enabled, variants_json FROM keywords WHERE enabled = 1').all();
+  const configs = [];
+  for (const row of rows) {
+    let variants = [];
+    if (row.variants_json) {
+      try {
+        const parsed = JSON.parse(row.variants_json);
+        if (Array.isArray(parsed.variants)) {
+          variants = parsed.variants;
+        }
+      } catch {
+        // ignore parse error, will regenerate
+      }
+    }
+    configs.push({
+      id: row.id,
+      keyword: row.keyword,
+      variants,
+    });
+  }
+  return configs;
+}
+
+async function ensureKeywordVariants(configs) {
+  const stmt = db.prepare('UPDATE keywords SET variants_json = ?, variants_updated_at = datetime(\'now\') WHERE id = ?');
+  for (const cfg of configs) {
+    if (Array.isArray(cfg.variants) && cfg.variants.length > 0) continue;
+    try {
+      const expanded = await expandKeyword(cfg.keyword);
+      cfg.variants = expanded.variants || [];
+      stmt.run(JSON.stringify({ keyword: expanded.keyword, variants: cfg.variants }), cfg.id);
+    } catch (e) {
+      console.error('[Scanner] expandKeyword failed for', cfg.keyword, e.message);
+      cfg.variants = [{ text: cfg.keyword, type: 'exact', weight: 1 }];
+    }
+  }
+}
+
+function buildQueryTermsFromVariants(configs, minWeight = 0.6) {
+  const terms = [];
+  for (const cfg of configs) {
+    const vars = Array.isArray(cfg.variants) ? cfg.variants : [];
+    for (const v of vars) {
+      const w = Number.isFinite(Number(v.weight)) ? Number(v.weight) : 1;
+      if (w < minWeight) continue;
+      if (!v.text) continue;
+      terms.push(v.text);
+    }
+  }
+  const unique = [];
+  const seen = new Set();
+  for (const t of terms) {
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(t);
+  }
+  return unique;
 }
 
 // URL 归一化 & 跨来源去重，避免同一条新闻在列表中重复出现
@@ -119,21 +181,24 @@ function loadSettings() {
 }
 
 export async function runScan() {
-  const keywords = db.prepare('SELECT keyword FROM keywords WHERE enabled = 1').all();
-  const kwList = keywords.map((r) => r.keyword);
+  const keywordConfigs = buildKeywordConfigs();
+  await ensureKeywordVariants(keywordConfigs);
+  const kwList = keywordConfigs.map((r) => r.keyword);
   const settings = loadSettings();
   const twitterFilterConfig = getTwitterFilterConfig(settings);
+
+  const expandedQueryTerms = buildQueryTermsFromVariants(keywordConfigs, 0.6);
 
   const all = [];
   const fetchers = [
     fetchHuggingFace(),
     fetchCustomRss(),
     fetchReddit(),
-    fetchTwitter(kwList, twitterFilterConfig),
+    fetchTwitter(expandedQueryTerms.length ? expandedQueryTerms : kwList, twitterFilterConfig),
     fetchHackerNews(kwList),
     fetchDevNews(),
-    fetchGoogleNews(kwList),
-    fetchDuckDuckGo(kwList).catch((e) => {
+    fetchGoogleNews(expandedQueryTerms.length ? expandedQueryTerms : kwList),
+    fetchDuckDuckGo(expandedQueryTerms.length ? expandedQueryTerms : kwList).catch((e) => {
       console.error('[DuckDuckGo]', e.message);
       return [];
     }),
@@ -166,8 +231,9 @@ export async function runScan() {
       source, external_id, title, summary, url, raw_content, published_at,
       like_count, retweet_count, view_count, relevance_score, matched_keywords,
       importance, authenticity, ai_description, ai_reason, author, ai_tags,
+      keyword_signals,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     ON CONFLICT(source, external_id) DO UPDATE SET
       summary = excluded.summary,
       raw_content = excluded.raw_content,
@@ -182,6 +248,7 @@ export async function runScan() {
       ai_reason = excluded.ai_reason,
       author = excluded.author,
       ai_tags = excluded.ai_tags,
+      keyword_signals = excluded.keyword_signals,
       updated_at = datetime('now')
   `);
 
@@ -191,11 +258,24 @@ export async function runScan() {
   for (const item of toProcess) {
     const text = [item.title, item.summary, item.rawContent].filter(Boolean).join(' ');
     const matchedKws = getMatchedKeywords(text, kwList);
-    const aiResult = await filterAndSummarize(item, kwList);
+    const itemKeywordConfigs = keywordConfigs
+      .filter((cfg) => matchedKws.includes(cfg.keyword))
+      .map((cfg) => ({
+        keyword: cfg.keyword,
+        variants: cfg.variants,
+      }));
+    const aiResult = await filterAndSummarize(item, kwList, itemKeywordConfigs);
     if (!aiResult.keep) continue;
 
     if (newCount < 3) {
-      console.log(`[Scanner] AI result sample — reason: "${(aiResult.reason || '').slice(0, 60)}", tags: [${(aiResult.tags || []).join(',')}], desc len: ${(aiResult.description || '').length}`);
+      const ksSample = Array.isArray(aiResult.keyword_signals)
+        ? aiResult.keyword_signals.map((k) => `${k.keyword}:${k.relation}:${k.score}`).slice(0, 3).join(' | ')
+        : '';
+      console.log(
+        `[Scanner] AI result sample — reason: "${(aiResult.reason || '').slice(0, 60)}", tags: [${(aiResult.tags || []).join(
+          ','
+        )}], ks: ${ksSample}`
+      );
     }
 
     const likes = item.likeCount ?? null;
@@ -210,6 +290,7 @@ export async function runScan() {
     const aiReason = aiResult.reason || '';
     const authorVal = item.author || '';
     const aiTagsVal = Array.isArray(aiResult.tags) ? aiResult.tags.join(',') : '';
+    const keywordSignalsJson = aiResult.keyword_signals ? JSON.stringify(aiResult.keyword_signals) : null;
 
     try {
       const result = upsertStmt.run(
@@ -230,7 +311,8 @@ export async function runScan() {
         aiDesc,
         aiReason,
         authorVal,
-        aiTagsVal
+        aiTagsVal,
+        keywordSignalsJson
       );
       if (result.changes > 0) newCount++;
     } catch (e) {

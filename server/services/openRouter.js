@@ -1,6 +1,12 @@
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+import { OPENROUTER_URL, callOpenRouterJson } from './openRouterShared.js';
 
-export async function filterAndSummarize(item, keywords = []) {
+/**
+ * @param {object} item 基础内容项
+ * @param {string[]} keywords 监控关键词列表（基础词）
+ * @param {Array<{ keyword: string; variants?: Array<{ text: string; type: string; weight: number }> }>} keywordConfigs
+ *        可选：包含每个关键词的查询变体信息，用于解释与关键词的关系
+ */
+export async function filterAndSummarize(item, keywords = [], keywordConfigs = []) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   const fallback = {
     keep: true,
@@ -17,9 +23,28 @@ export async function filterAndSummarize(item, keywords = []) {
   const text = [item.title, item.summary, item.rawContent].filter(Boolean).join('\n').slice(0, 1500);
   const kwHint = keywords.length ? ` 用户关注关键词：${keywords.join('、')}` : '';
 
-  const systemPrompt = `你是 AI 内容审核助手。对输入内容输出完整 JSON（所有 8 个字段都必须填写，不可省略任何字段）。
+  let keywordConfigHint = '';
+  if (Array.isArray(keywordConfigs) && keywordConfigs.length > 0) {
+    const parts = [];
+    for (const kc of keywordConfigs) {
+      if (!kc || !kc.keyword || !Array.isArray(kc.variants)) continue;
+      const vs = kc.variants
+        .filter((v) => v && v.text)
+        .slice(0, 5)
+        .map((v) => `${v.text}(${v.type || 'alias'})`)
+        .join('，');
+      if (vs) {
+        parts.push(`${kc.keyword} → ${vs}`);
+      }
+    }
+    if (parts.length > 0) {
+      keywordConfigHint = `\n关键词查询变体示例：\n${parts.join('\n')}\n`;
+    }
+  }
 
-字段说明：
+  const systemPrompt = `你是 AI 内容审核助手。对输入内容输出完整 JSON（所有字段都必须填写，不可省略任何字段）。
+
+字段说明（全局维度）：
 - keep (bool): 真实有价值的 AI/技术资讯=true；营销/低质/无关=false
 - summary (string): 一句话摘要
 - description (string): 2-3句要点概括，让读者不用打开原文即可了解核心信息
@@ -29,8 +54,43 @@ export async function filterAndSummarize(item, keywords = []) {
 - importance ("urgent"|"high"|"medium"|"low"): urgent=安全漏洞/重大事故; high=重要发布/里程碑; medium=常规更新/讨论; low=边缘话题
 - authenticity ("verified"|"suspected_false"): verified=来源可信; suspected_false=夸大/未证传闻
 
-输出格式（严格 JSON，所有 8 个字段必须存在）：
-{"keep":true,"summary":"...","description":"...","reason":"...","tags":["..."],"relevance":80,"importance":"medium","authenticity":"verified"}
+关键词级相关性字段（keyword_signals）：
+- keyword_signals (array): 针对每个监控关键词的关系判断
+- keyword_signals[i].keyword (string): 监控关键词原文
+- keyword_signals[i].relation (string): "direct"|"strong"|"comparison"|"background"|"mention_only"|"unrelated"
+  - direct: 文章主要就是在讲这个关键词本身（发布、更新、重大事件）
+  - strong: 该关键词是文章核心要素之一（技术细节、深度讨论）
+  - comparison: 只是用来和别的对象做对比或比喻，例如“某国产模型是 GPT-5 的中国版”
+  - background: 作为背景信息顺带提到
+  - mention_only: 偶尔提及，与主要内容关系很弱
+  - unrelated: 实际与该关键词无关
+- keyword_signals[i].score (int 0-100): 对【该关键词】的直接相关度评分
+- keyword_signals[i].matched_variants (array of string, 可选): 命中的查询变体（如果有的话）
+
+打分建议：
+- 只有 relation 为 "direct" 或 "strong" 时，score 一般 >= 70
+- "comparison" 通常在 30-60 之间
+- "background"/"mention_only" 多数低于 40
+
+输出格式（严格 JSON，所有字段必须存在）：
+{
+  "keep": true,
+  "summary": "...",
+  "description": "...",
+  "reason": "...",
+  "tags": ["..."],
+  "relevance": 80,
+  "importance": "medium",
+  "authenticity": "verified",
+  "keyword_signals": [
+    {
+      "keyword": "GPT-5",
+      "relation": "direct",
+      "score": 88,
+      "matched_variants": ["GPT-5","GPT 5"]
+    }
+  ]
+}
 
 示例：
 输入：OpenAI 发现 ChatGPT 存在严重 RCE 漏洞
@@ -39,32 +99,15 @@ export async function filterAndSummarize(item, keywords = []) {
 输入：某开发者分享了使用 LangChain 构建 RAG 应用的教程
 输出：{"keep":true,"summary":"LangChain RAG 应用实战教程","description":"开发者详细分享了使用 LangChain 框架构建检索增强生成应用的完整流程，包括向量数据库选型和提示词优化技巧。","reason":"实用技术教程，对 AI 应用开发者有参考价值","tags":["LangChain","RAG","教程"],"relevance":70,"importance":"medium","authenticity":"verified"}`;
 
-  const userPrompt = `内容来源：${item.source}\n标题：${item.title}\n\n正文片段：\n${text}\n${kwHint}\n\n请判断并回复 JSON。`;
+  const userPrompt = `内容来源：${item.source}\n标题：${item.title}\n\n正文片段：\n${text}\n${kwHint}${keywordConfigHint}\n\n请判断并回复 JSON。`;
 
   try {
-    const res = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-5.2',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 500,
-        temperature: 0.2,
-        response_format: { type: 'json_object' },
-      }),
+    const data = await callOpenRouterJson({
+      model: 'openai/gpt-5.2',
+      systemPrompt,
+      userPrompt,
+      max_tokens: 600,
     });
-
-    const data = await res.json();
-    if (!res.ok) {
-      console.log('[OpenRouter] API error:', res.status, JSON.stringify(data).slice(0, 200));
-      return fallback;
-    }
     const content = data?.choices?.[0]?.message?.content;
     if (!content) {
       console.log('[OpenRouter] No content in response:', JSON.stringify(data).slice(0, 200));
@@ -85,6 +128,20 @@ export async function filterAndSummarize(item, keywords = []) {
       : 'verified';
     const tags = Array.isArray(parsed.tags) ? parsed.tags.filter((t) => typeof t === 'string').slice(0, 3) : [];
 
+    let keywordSignals = [];
+    if (Array.isArray(parsed.keyword_signals)) {
+      keywordSignals = parsed.keyword_signals
+        .map((ks) => ({
+          keyword: typeof ks.keyword === 'string' ? ks.keyword : '',
+          relation: typeof ks.relation === 'string' ? ks.relation : 'unrelated',
+          score: Number.isFinite(Number(ks.score)) ? Math.max(0, Math.min(100, Number(ks.score))) : 0,
+          matched_variants: Array.isArray(ks.matched_variants)
+            ? ks.matched_variants.filter((v) => typeof v === 'string').slice(0, 5)
+            : [],
+        }))
+        .filter((ks) => ks.keyword);
+    }
+
     return {
       keep: !!parsed.keep,
       summary: typeof parsed.summary === 'string' ? parsed.summary : (item.summary || item.title),
@@ -94,6 +151,7 @@ export async function filterAndSummarize(item, keywords = []) {
       relevance: rel,
       importance,
       authenticity,
+      keyword_signals: keywordSignals,
     };
   } catch (e) {
     console.log('[OpenRouter] Exception:', e.message);
