@@ -6,22 +6,23 @@ export async function fetchTwitter(keywords = [], filterConfig) {
   if (!apiKey) return [];
 
   const config = filterConfig || getTwitterFilterConfig({});
+  // 增加关键词数量从 3 到 6，扩大查询范围
   const terms = keywords.length
-    ? keywords.slice(0, 3).map((k) => `"${k}"`).join(' OR ')
-    : 'AI OR GPT OR LLM OR Claude';
+    ? keywords.slice(0, 6).map((k) => `"${k}"`).join(' OR ')
+    : 'AI OR GPT OR LLM OR Claude OR Deepseek';
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const query = `${terms} since:${since}`;
 
   const items = [];
   let cursor = '';
   let page = 0;
-  const maxPages = 3;
+  const maxPages = 5; // 增加页数获取更多结果
 
   try {
     while (page < maxPages) {
       const params = new URLSearchParams({
         query,
-        queryType: 'Top',
+        queryType: 'Latest',
         cursor: cursor || '',
       });
       const res = await fetch(`${API_BASE}/twitter/tweet/advanced_search?${params}`, {
