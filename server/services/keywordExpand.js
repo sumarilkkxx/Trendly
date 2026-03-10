@@ -49,7 +49,7 @@ export async function expandKeyword(keyword) {
 请按照要求生成查询变体 JSON。`;
 
   const data = await callOpenRouterJson({
-    model: 'openai/gpt-5.2',
+    model: 'google/gemini-3-flash-preview',
     systemPrompt,
     userPrompt,
     max_tokens: 400,

@@ -103,7 +103,7 @@ export async function filterAndSummarize(item, keywords = [], keywordConfigs = [
 
   try {
     const data = await callOpenRouterJson({
-      model: 'openai/gpt-5.2',
+      model: 'google/gemini-3-flash-preview',
       systemPrompt,
       userPrompt,
       max_tokens: 600,

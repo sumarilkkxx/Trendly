@@ -187,7 +187,7 @@ export async function runScan() {
   const settings = loadSettings();
   const twitterFilterConfig = getTwitterFilterConfig(settings);
 
-  const expandedQueryTerms = buildQueryTermsFromVariants(keywordConfigs, 0.6);
+  const expandedQueryTerms = buildQueryTermsFromVariants(keywordConfigs, 0.4);
 
   const all = [];
   const fetchers = [
