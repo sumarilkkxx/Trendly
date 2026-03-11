@@ -158,10 +158,86 @@ try {
   if (!e.message?.includes('duplicate column')) throw e;
 }
 
-// 默认设置
+// 表：通知通道与推送记录（多平台）
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS notification_channels (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      target TEXT,
+      enabled INTEGER DEFAULT 1,
+      interval_hours INTEGER DEFAULT 24,
+      config_json TEXT,
+      last_run_at TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS hotspot_notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hotspot_id INTEGER NOT NULL,
+      channel_id INTEGER NOT NULL,
+      notified_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(hotspot_id, channel_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_notification_channels_enabled
+      ON notification_channels(enabled);
+    CREATE INDEX IF NOT EXISTS idx_hotspot_notifications_channel
+      ON hotspot_notifications(channel_id);
+    CREATE INDEX IF NOT EXISTS idx_hotspot_notifications_hotspot
+      ON hotspot_notifications(hotspot_id);
+  `);
+} catch (e) {
+  // ignore table creation errors at runtime
+}
+
+// 迁移：为旧版本兼容添加 interval_hours 列（若不存在）
+try {
+  db.exec(`ALTER TABLE notification_channels ADD COLUMN interval_hours INTEGER`);
+} catch (e) {
+  if (!e.message?.includes('duplicate column')) throw e;
+}
+
+// 若存在环境变量邮箱且尚无 email 通道，则自动创建一个默认邮件通道（24 小时间隔）
+try {
+  const emailEnv =
+    process.env.NOTIFY_EMAIL ||
+    process.env.SMTP_USER ||
+    process.env.SMTP_FROM;
+  if (emailEnv) {
+    const exists = db
+      .prepare(
+        "SELECT COUNT(1) as c FROM notification_channels WHERE type = 'email'"
+      )
+      .get();
+    if (!exists || !exists.c) {
+      db.prepare(
+        `
+        INSERT INTO notification_channels
+          (name, type, target, enabled, interval_hours, config_json, created_at, updated_at)
+        VALUES
+          (@name, @type, @target, @enabled, @interval_hours, @config_json, datetime('now'), datetime('now'))
+      `
+      ).run({
+        name: '默认邮件摘要',
+        type: 'email',
+        target: emailEnv,
+        enabled: 1,
+        interval_hours: 24,
+        config_json: JSON.stringify({}),
+      });
+    }
+  }
+} catch (e) {
+  // ignore auto-create channel errors
+}
+
+// 默认设置（统一按小时制）
 const defaults = [
-  ['scan_interval_minutes', '30'],
-  ['notify_interval_hours', '4'],
+  ['scan_interval_hours', '24'],
+  ['notify_interval_hours', '24'],
   ['webhook_url', ''],
   ['webhook_type', ''],
   ['theme_range', ''],

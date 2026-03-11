@@ -10,7 +10,7 @@ function getDueChannels() {
       WHERE enabled = 1
         AND (
           last_run_at IS NULL
-          OR (strftime('%s', 'now') - strftime('%s', last_run_at)) >= interval_minutes * 60
+          OR (strftime('%s', 'now') - strftime('%s', last_run_at)) >= COALESCE(interval_hours, 24) * 3600
         )
     `
     )
@@ -139,7 +139,7 @@ function buildTextDigest(items) {
 async function sendWebhookDigest(channel, items) {
   const cfg = parseConfig(channel);
   const url = cfg.webhook_url;
-  if (!url) {
+  if (!url && channel.type !== 'email') {
     console.warn(
       `[Notifications] Channel ${channel.id} (${channel.type}) missing webhook_url, skip`
     );
@@ -231,7 +231,7 @@ export async function runNotificationTick() {
       }
 
       console.log(
-        `[Notifications] Sending digest via channel #${ch.id} (${ch.type}, interval=${ch.interval_minutes}min) with ${items.length} items`
+        `[Notifications] Sending digest via channel #${ch.id} (${ch.type}, interval=${ch.interval_hours ?? 24}h) with ${items.length} items`
       );
 
       await sendChannelDigest(ch, items);

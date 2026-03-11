@@ -41,6 +41,23 @@ export const api = {
     get: () => request('/settings'),
     update: (data) => request('/settings', { method: 'POST', body: JSON.stringify(data) }),
   },
+  notificationChannels: {
+    list: () => request('/notificationChannels'),
+    create: (data) =>
+      request('/notificationChannels', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id, data) =>
+      request(`/notificationChannels/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    remove: (id) =>
+      request(`/notificationChannels/${id}`, {
+        method: 'DELETE',
+      }),
+  },
   sources: {
     list: () => request('/sources'),
     add: (url, name) => request('/sources', { method: 'POST', body: JSON.stringify({ url, name }) }),

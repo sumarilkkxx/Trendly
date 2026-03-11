@@ -4,8 +4,8 @@ import db from '../db.js';
 const router = Router();
 
 const SETTING_DEFAULTS = {
-  scan_interval_minutes: 30,
-  notify_interval_hours: 4,
+  scan_interval_hours: 24,
+  notify_interval_hours: 24,
   notify_enabled: 'true',
   twitter_filter_mode: 'standard',
   twitter_min_likes: 10,
@@ -20,9 +20,10 @@ function parseSetting(key, value) {
   if (value === undefined || value === null || value === '') {
     return SETTING_DEFAULTS[key] ?? '';
   }
-  if (key === 'scan_interval_minutes' || key === 'notify_interval_hours') {
+  if (key === 'scan_interval_hours' || key === 'notify_interval_hours') {
     const parsed = parseInt(value, 10);
-    return Number.isNaN(parsed) ? (key.includes('scan') ? 30 : 4) : parsed;
+    const fallback = key === 'scan_interval_hours' ? 24 : 24;
+    return Number.isNaN(parsed) ? fallback : parsed;
   }
   if (key.startsWith('twitter_min_')) {
     const parsed = parseInt(value, 10);
@@ -51,7 +52,7 @@ router.post('/', (req, res) => {
   try {
     const body = req.body || {};
     const allowed = [
-      'scan_interval_minutes', 'notify_interval_hours', 'notify_enabled', 'webhook_url', 'webhook_type', 'theme_range',
+      'scan_interval_hours', 'notify_interval_hours', 'notify_enabled', 'webhook_url', 'webhook_type', 'theme_range',
       'twitter_filter_mode', 'twitter_min_likes', 'twitter_min_retweets', 'twitter_min_views',
       'twitter_min_followers', 'twitter_exclude_replies',
       'theme',
