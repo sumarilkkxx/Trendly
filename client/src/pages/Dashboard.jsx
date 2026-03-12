@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ keywords: 0, hotspots: 0, sources: 0 });
   const [hotspots, setHotspots] = useState([]);
   const [scanning, setScanning] = useState(false);
+  const [lastScan, setLastScan] = useState(null);
 
   const loadHotspots = useCallback(async (signal) => {
     try {
@@ -55,7 +56,15 @@ export default function Dashboard() {
   const runScan = async () => {
     setScanning(true);
     try {
-      await api.scan();
+      const res = await api.scan();
+      if (res && typeof res === 'object') {
+        // 后端返回 { ok, message, scan }，这里额外打印一次方便调试
+        // eslint-disable-next-line no-console
+        console.log('Scan response:', res);
+        if (res.scan) {
+          setLastScan(res.scan);
+        }
+      }
       await loadHotspots(undefined);
       await loadStats();
     } catch (e) {
@@ -113,6 +122,21 @@ export default function Dashboard() {
                 <Zap className="size-4" />
                 {scanning ? '扫描中…' : '立即扫描'}
               </Button>
+              {lastScan && (
+                <p className="text-[11px] text-muted-foreground/70 text-right">
+                  {(() => {
+                    const totalMs = lastScan?.timings?.totalMs ?? 0;
+                    const secs =
+                      typeof totalMs === 'number'
+                        ? (totalMs / 1000).toFixed(1)
+                        : '0.0';
+                    const candidates = lastScan?.counts?.candidates ?? 0;
+                    const aiAttempts = lastScan?.counts?.aiAttempts ?? 0;
+                    const created = lastScan?.new ?? 0;
+                    return `最近一次扫描：用时 ${secs} 秒 · 候选 ${candidates} 条 · AI 分析 ${aiAttempts} 条 · 新增 ${created} 条`;
+                  })()}
+                </p>
+              )}
             </div>
           </div>
 
@@ -154,7 +178,7 @@ export default function Dashboard() {
             <div className="tech-grid rounded-2xl border border-white/[0.06] py-20 text-center">
               <Radio className="mx-auto mb-3 size-6 text-primary/30" />
               <p className="text-sm text-muted-foreground">
-                暂无信号 · 添加消息源后点击「立即扫描」开始追踪
+                暂无热点 · 添加消息源后点击「立即扫描」开始追踪
               </p>
             </div>
           ) : (
