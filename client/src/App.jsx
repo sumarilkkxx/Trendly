@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Hotspots from './pages/Hotspots';
 import SettingsPage from './pages/Settings';
 import About from './pages/About';
+import { ScanProvider } from './contexts/ScanContext';
 import {
   SidebarProvider,
   Sidebar,
@@ -135,12 +136,14 @@ function Layout({ children }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/*" element={<AnimatedRoutes />} />
-        </Routes>
-      </Layout>
-    </BrowserRouter>
+    <ScanProvider>
+      <BrowserRouter>
+        <Layout>
+          <Routes>
+            <Route path="/*" element={<AnimatedRoutes />} />
+          </Routes>
+        </Layout>
+      </BrowserRouter>
+    </ScanProvider>
   );
 }

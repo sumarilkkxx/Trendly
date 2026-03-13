@@ -377,6 +377,10 @@ export async function runScan() {
         : null;
 
       try {
+        // 先检查记录是否存在
+        const checkStmt = db.prepare('SELECT id FROM hotspots WHERE source = ? AND external_id = ?');
+        const existing = checkStmt.get(item.source, String(item.externalId));
+        
         const result = upsertStmt.run(
           item.source,
           String(item.externalId),
@@ -398,9 +402,13 @@ export async function runScan() {
           aiTagsVal,
           keywordSignalsJson
         );
-        if (result.changes > 0) newCount += 1;
+        
+        // 如果之前不存在，则是新记录
+        if (!existing) {
+          newCount += 1;
+        }
       } catch (e) {
-        // UNIQUE violation = already exists, ignore
+        console.error('[Scanner] Error upserting hotspot:', e.message);
       }
     }
   );
@@ -408,7 +416,7 @@ export async function runScan() {
   const tAiEnd = Date.now();
   const tEnd = Date.now();
 
-  return {
+  const scanResult = {
     scanned: toProcess.length,
     new: newCount,
     timings: {
@@ -423,4 +431,6 @@ export async function runScan() {
       aiKept,
     },
   };
+
+  return scanResult;
 }

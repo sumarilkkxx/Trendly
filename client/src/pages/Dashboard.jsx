@@ -7,12 +7,12 @@ import { PageMotion } from '@/components/ui/PageMotion';
 import { AuroraBackground } from '@/components/ui/AuroraBackground';
 import { BentoGrid, BentoGridItem } from '@/components/ui/BentoGrid';
 import { Flame, KeyRound, Rss, Zap, ChevronRight, Radio } from 'lucide-react';
+import { useScan } from '@/contexts/ScanContext';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ keywords: 0, hotspots: 0, sources: 0 });
   const [hotspots, setHotspots] = useState([]);
-  const [scanning, setScanning] = useState(false);
-  const [lastScan, setLastScan] = useState(null);
+  const { scanning, lastScan, runScan } = useScan();
 
   const loadHotspots = useCallback(async (signal) => {
     try {
@@ -53,25 +53,11 @@ export default function Dashboard() {
     return () => ctrl.abort();
   }, [loadHotspots]);
 
-  const runScan = async () => {
-    setScanning(true);
-    try {
-      const res = await api.scan();
-      if (res && typeof res === 'object') {
-        // 后端返回 { ok, message, scan }，这里额外打印一次方便调试
-        // eslint-disable-next-line no-console
-        console.log('Scan response:', res);
-        if (res.scan) {
-          setLastScan(res.scan);
-        }
-      }
+  const handleScan = async () => {
+    await runScan(async () => {
       await loadHotspots(undefined);
       await loadStats();
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      setScanning(false);
-    }
+    });
   };
 
   const handleDeleteItem = async (item) => {
@@ -83,6 +69,16 @@ export default function Dashboard() {
     } catch (e) {
       alert(e.message);
     }
+  };
+
+  const getScanMessage = () => {
+    if (!lastScan) return '暂无扫描记录';
+    const totalMs = lastScan?.timings?.totalMs ?? 0;
+    const secs = typeof totalMs === 'number' ? (totalMs / 1000).toFixed(1) : '0.0';
+    const candidates = lastScan?.counts?.candidates ?? 0;
+    const aiAttempts = lastScan?.counts?.aiAttempts ?? 0;
+    const created = lastScan?.new ?? 0;
+    return `最近一次扫描：用时 ${secs} 秒 · 候选 ${candidates} 条 · AI 分析 ${aiAttempts} 条 · 新增 ${created} 条`;
   };
 
   const statItems = [
@@ -114,33 +110,27 @@ export default function Dashboard() {
 
             <div className="flex shrink-0 flex-col gap-3 lg:items-end lg:pt-8">
               <Button
-                onClick={runScan}
+                onClick={handleScan}
                 disabled={scanning}
                 size="lg"
-                className="h-11 px-6"
+                className="h-11 px-6 relative overflow-hidden"
               >
-                <Zap className="size-4" />
-                {scanning ? '扫描中…' : '立即扫描'}
+                {scanning ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
+                    扫描中…
+                  </>
+                ) : (
+                  <>
+                    <Zap className="size-4 mr-2" />
+                    立即扫描
+                  </>
+                )}
               </Button>
-              {lastScan && (
-                <p className="text-[11px] text-muted-foreground/70 text-right">
-                  {(() => {
-                    const totalMs = lastScan?.timings?.totalMs ?? 0;
-                    const secs =
-                      typeof totalMs === 'number'
-                        ? (totalMs / 1000).toFixed(1)
-                        : '0.0';
-                    const candidates = lastScan?.counts?.candidates ?? 0;
-                    const aiAttempts = lastScan?.counts?.aiAttempts ?? 0;
-                    const created = lastScan?.new ?? 0;
-                    return `最近一次扫描：用时 ${secs} 秒 · 候选 ${candidates} 条 · AI 分析 ${aiAttempts} 条 · 新增 ${created} 条`;
-                  })()}
-                </p>
-              )}
             </div>
           </div>
 
-          <BentoGrid className="relative z-10 mt-8 gap-4 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3">
+          <BentoGrid className="relative z-10 mt-8 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
             {statItems.map(({ label, value, icon: Icon }) => (
               <BentoGridItem
                 key={label}
@@ -151,6 +141,13 @@ export default function Dashboard() {
                 <span className="mt-2 text-4xl font-bold text-primary tabular-nums tracking-tight">{value}</span>
               </BentoGridItem>
             ))}
+            <BentoGridItem
+              icon={<Zap />}
+              title="Scan Status"
+              className="min-h-[140px]"
+            >
+              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{getScanMessage()}</p>
+            </BentoGridItem>
           </BentoGrid>
         </section>
 
