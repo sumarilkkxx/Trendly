@@ -10,7 +10,7 @@ function getDueChannels() {
       WHERE enabled = 1
         AND (
           last_run_at IS NULL
-          OR (strftime('%s', 'now') - strftime('%s', last_run_at)) >= interval_minutes * 60
+          OR (strftime('%s', 'now') - strftime('%s', last_run_at)) >= COALESCE(interval_hours, 24) * 3600
         )
     `
     )
@@ -84,8 +84,10 @@ function getPendingHotspotsForChannel(channelId, limit = 50) {
     .all(channelId, limit);
 }
 
-/** 最近 N 分钟内更新的热点中，该通道尚未推送的（用于“立即扫描”后即时推送） */
-function getRecentlyUpdatedPendingForChannel(channelId, sinceMinutes = 3, limit = 50) {
+/** 最近 N 分钟内创建的热点中，该通道尚未推送的（用于“立即扫描”后即时推送） */
+function getRecentlyUpdatedPendingForChannel(channelId, sinceMinutes = 10, limit = 50) {
+  const timeThreshold = `-${sinceMinutes} minutes`;
+  
   return db
     .prepare(
       `
@@ -94,12 +96,12 @@ function getRecentlyUpdatedPendingForChannel(channelId, sinceMinutes = 3, limit 
       LEFT JOIN hotspot_notifications hn
         ON hn.hotspot_id = h.id AND hn.channel_id = ?
       WHERE hn.id IS NULL
-        AND h.updated_at >= datetime('now', ?)
-      ORDER BY h.updated_at DESC
+        AND h.created_at >= datetime('now', ?)
+      ORDER BY h.created_at DESC
       LIMIT ?
     `
     )
-    .all(channelId, `-${sinceMinutes} minutes`, limit);
+    .all(channelId, timeThreshold, limit);
 }
 
 function buildTextDigest(items) {
@@ -139,7 +141,7 @@ function buildTextDigest(items) {
 async function sendWebhookDigest(channel, items) {
   const cfg = parseConfig(channel);
   const url = cfg.webhook_url;
-  if (!url) {
+  if (!url && channel.type !== 'email') {
     console.warn(
       `[Notifications] Channel ${channel.id} (${channel.type}) missing webhook_url, skip`
     );
@@ -231,7 +233,7 @@ export async function runNotificationTick() {
       }
 
       console.log(
-        `[Notifications] Sending digest via channel #${ch.id} (${ch.type}, interval=${ch.interval_minutes}min) with ${items.length} items`
+        `[Notifications] Sending digest via channel #${ch.id} (${ch.type}, interval=${ch.interval_hours ?? 24}h) with ${items.length} items`
       );
 
       await sendChannelDigest(ch, items);
@@ -256,11 +258,13 @@ export async function runNotificationNow() {
 
   for (const ch of channels) {
     try {
-      // 优先：最近 3 分钟内更新的、该通道尚未推送的（即本轮扫描结果）
-      let items = getRecentlyUpdatedPendingForChannel(ch.id, 3, 50);
+      // 优先：最近 10 分钟内更新的、该通道尚未推送的（即本轮扫描结果）
+      let items = getRecentlyUpdatedPendingForChannel(ch.id, 10, 50);
+      
       if (!items.length) {
         items = getPendingHotspotsForChannel(ch.id, 50);
       }
+      
       if (!items.length) {
         console.log(`[Notifications] runNotificationNow: channel #${ch.id} (${ch.type}) has no pending items, skip`);
         continue;

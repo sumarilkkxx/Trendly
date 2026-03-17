@@ -4,26 +4,28 @@ import db from '../db.js';
 const router = Router();
 
 // 仅允许通过此路由管理第三方工作平台通道
-const ALLOWED_TYPES = new Set(['wecom', 'feishu', 'dingtalk']);
-
-function normalizeIntervalMinutes(raw) {
-  const n = parseInt(raw, 10);
-  if (!Number.isFinite(n) || n <= 0) return 240;
-  return Math.max(5, Math.min(n, 24 * 60));
-}
+const ALLOWED_TYPES = new Set([
+  'email',
+  'wecom',
+  'feishu',
+  'dingtalk',
+  'webhook_generic',
+]);
 
 function normalizeChannelPayload(body) {
   const name = (body.name || '').trim();
   const type = String(body.type || '').toLowerCase();
   const target = body.target ? String(body.target) : null;
   const enabled = body.enabled === false || body.enabled === 0 ? 0 : 1;
-  const intervalMinutes = normalizeIntervalMinutes(
-    body.interval_minutes ?? body.intervalMinutes
-  );
+  const intervalHoursRaw = body.interval_hours ?? body.intervalHours;
+  const intervalHoursParsed = parseInt(intervalHoursRaw, 10);
+  const intervalHours = Number.isFinite(intervalHoursParsed)
+    ? Math.max(1, Math.min(intervalHoursParsed, 24 * 7))
+    : 24;
   const config =
     body.config && typeof body.config === 'object' ? body.config : {};
 
-  return { name, type, target, enabled, intervalMinutes, config };
+  return { name, type, target, enabled, intervalHours, config };
 }
 
 router.get('/', (req, res) => {
@@ -31,9 +33,8 @@ router.get('/', (req, res) => {
     const rows = db
       .prepare(
         `
-        SELECT id, name, type, target, enabled, interval_minutes, config_json, last_run_at, created_at, updated_at
+        SELECT id, name, type, target, enabled, interval_hours, config_json, last_run_at, created_at, updated_at
         FROM notification_channels
-        WHERE type IN ('wecom', 'feishu', 'dingtalk')
         ORDER BY id ASC
       `
       )
@@ -50,7 +51,7 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   try {
-    const { name, type, target, enabled, intervalMinutes, config } =
+    const { name, type, target, enabled, intervalHours, config } =
       normalizeChannelPayload(req.body || {});
 
     if (!name) {
@@ -59,15 +60,15 @@ router.post('/', (req, res) => {
     if (!type || !ALLOWED_TYPES.has(type)) {
       return res
         .status(400)
-        .json({ error: 'type is required and must be one of email/wecom/feishu/dingtalk' });
+        .json({ error: 'type is required and must be one of email/wecom/feishu/dingtalk/webhook_generic' });
     }
 
     const stmt = db.prepare(
       `
       INSERT INTO notification_channels
-        (name, type, target, enabled, interval_minutes, config_json, created_at, updated_at)
+        (name, type, target, enabled, interval_hours, config_json, created_at, updated_at)
       VALUES
-        (@name, @type, @target, @enabled, @interval_minutes, @config_json, datetime('now'), datetime('now'))
+        (@name, @type, @target, @enabled, @interval_hours, @config_json, datetime('now'), datetime('now'))
     `
     );
 
@@ -76,7 +77,7 @@ router.post('/', (req, res) => {
       type,
       target,
       enabled,
-      interval_minutes: intervalMinutes,
+      interval_hours: intervalHours,
       config_json: JSON.stringify(config || {}),
     });
 
@@ -106,7 +107,7 @@ router.put('/:id', (req, res) => {
       return res.status(404).json({ error: 'channel not found' });
     }
 
-    const { name, type, target, enabled, intervalMinutes, config } =
+    const { name, type, target, enabled, intervalHours, config } =
       normalizeChannelPayload({ ...existing, ...req.body });
 
     if (!name) {
@@ -115,7 +116,7 @@ router.put('/:id', (req, res) => {
     if (!type || !ALLOWED_TYPES.has(type)) {
       return res
         .status(400)
-        .json({ error: 'type is required and must be one of email/wecom/feishu/dingtalk' });
+        .json({ error: 'type is required and must be one of email/wecom/feishu/dingtalk/webhook_generic' });
     }
 
     const stmt = db.prepare(
@@ -126,7 +127,7 @@ router.put('/:id', (req, res) => {
         type = @type,
         target = @target,
         enabled = @enabled,
-        interval_minutes = @interval_minutes,
+        interval_hours = @interval_hours,
         config_json = @config_json,
         updated_at = datetime('now')
       WHERE id = @id
@@ -139,7 +140,7 @@ router.put('/:id', (req, res) => {
       type,
       target,
       enabled,
-      interval_minutes: intervalMinutes,
+      interval_hours: intervalHours,
       config_json: JSON.stringify(config || {}),
     });
 

@@ -107,6 +107,7 @@ router.get('/', (req, res) => {
       relevanceMin,
       relevanceMax,
     } = req.query;
+    
     const offset = (Math.max(1, parseInt(page, 10)) - 1) * Math.min(50, Math.max(1, parseInt(limit, 10)));
 
     let where = '';
@@ -163,6 +164,7 @@ router.get('/', (req, res) => {
       `SELECT * FROM hotspots WHERE 1=1 ${where} ${orderBy} LIMIT ? OFFSET ?`
     );
     const rows = listStmt.all(...params, limitVal, offset);
+    
     res.json({
       items: rows,
       total,
@@ -196,7 +198,10 @@ router.delete('/:id', (req, res) => {
 // 删除全部热点
 router.delete('/', (req, res) => {
   try {
+    // 删除 hotspots 表
     db.exec('DELETE FROM hotspots');
+    // 同时也删除相关的通知记录
+    db.exec('DELETE FROM hotspot_notifications');
     return res.status(204).end();
   } catch (e) {
     return res.status(500).json({ error: e.message });

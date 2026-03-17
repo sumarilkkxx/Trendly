@@ -9,6 +9,7 @@ import hotspotsRoutes from './routes/hotspots.js';
 import settingsRoutes from './routes/settings.js';
 import sourcesRoutes from './routes/sources.js';
 import scanRoutes from './routes/scan.js';
+import notificationChannelsRoutes from './routes/notificationChannels.js';
 import { startScheduler } from './scheduler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -23,6 +24,7 @@ app.use('/api/hotspots', hotspotsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/sources', sourcesRoutes);
 app.use('/api/scan', scanRoutes);
+app.use('/api/notificationChannels', notificationChannelsRoutes);
 
 // 静态资源（前端构建后）
 const clientDist = join(__dirname, '..', 'client', 'dist');

@@ -6,7 +6,6 @@ data/
 client/dist/
 .DS_Store
 MASTER.md
-.cursor
 design-system/
 *.log
 docs/

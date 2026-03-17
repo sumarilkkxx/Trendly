@@ -42,19 +42,48 @@ function buildKeywordConfigs() {
   return configs;
 }
 
+async function runWithConcurrency(items, limit, worker) {
+  if (!Array.isArray(items) || items.length === 0) return;
+  const poolSize = Math.max(1, limit || 1);
+  let index = 0;
+
+  async function next() {
+    const current = index;
+    if (current >= items.length) return;
+    index += 1;
+    await worker(items[current], current);
+    return next();
+  }
+
+  const runners = [];
+  for (let i = 0; i < poolSize && i < items.length; i += 1) {
+    runners.push(next());
+  }
+  await Promise.all(runners);
+}
+
 async function ensureKeywordVariants(configs) {
-  const stmt = db.prepare('UPDATE keywords SET variants_json = ?, variants_updated_at = datetime(\'now\') WHERE id = ?');
-  for (const cfg of configs) {
-    if (Array.isArray(cfg.variants) && cfg.variants.length > 0) continue;
+  const stmt = db.prepare(
+    "UPDATE keywords SET variants_json = ?, variants_updated_at = datetime('now') WHERE id = ?"
+  );
+
+  await runWithConcurrency(configs, 3, async (cfg) => {
+    if (Array.isArray(cfg.variants) && cfg.variants.length > 0) return;
     try {
       const expanded = await expandKeyword(cfg.keyword);
       cfg.variants = expanded.variants || [];
-      stmt.run(JSON.stringify({ keyword: expanded.keyword, variants: cfg.variants }), cfg.id);
+      stmt.run(
+        JSON.stringify({
+          keyword: expanded.keyword,
+          variants: cfg.variants,
+        }),
+        cfg.id
+      );
     } catch (e) {
       console.error('[Scanner] expandKeyword failed for', cfg.keyword, e.message);
       cfg.variants = [{ text: cfg.keyword, type: 'exact', weight: 1 }];
     }
-  }
+  });
 }
 
 function buildQueryTermsFromVariants(configs, minWeight = 0.6) {
@@ -180,7 +209,21 @@ function loadSettings() {
   return obj;
 }
 
+function isHighSignalSource(source) {
+  if (!source) return false;
+  const s = String(source).toLowerCase();
+  if (s === 'twitter' || s.startsWith('twitter:')) return true;
+  if (s === 'hackernews') return true;
+  if (s === 'huggingface') return true;
+  if (s.startsWith('reddit:')) return true;
+  if (s.startsWith('rss:')) return true;
+  if (s.startsWith('devnews:')) return true;
+  return false;
+}
+
 export async function runScan() {
+  const tStart = Date.now();
+
   const keywordConfigs = buildKeywordConfigs();
   await ensureKeywordVariants(keywordConfigs);
   const kwList = keywordConfigs.map((r) => r.keyword);
@@ -194,17 +237,25 @@ export async function runScan() {
     fetchHuggingFace(),
     fetchCustomRss(),
     fetchReddit(),
-    fetchTwitter(expandedQueryTerms.length ? expandedQueryTerms : kwList, twitterFilterConfig),
+    fetchTwitter(
+      expandedQueryTerms.length ? expandedQueryTerms : kwList,
+      twitterFilterConfig
+    ),
     fetchHackerNews(kwList),
     fetchDevNews(),
     fetchGoogleNews(expandedQueryTerms.length ? expandedQueryTerms : kwList),
-    fetchDuckDuckGo(expandedQueryTerms.length ? expandedQueryTerms : kwList).catch((e) => {
-      console.error('[DuckDuckGo]', e.message);
-      return [];
-    }),
+    fetchDuckDuckGo(expandedQueryTerms.length ? expandedQueryTerms : kwList).catch(
+      (e) => {
+        console.error('[DuckDuckGo]', e.message);
+        return [];
+      }
+    ),
   ];
 
+  const tFetchStart = Date.now();
   const results = await Promise.all(fetchers);
+  const tFetchEnd = Date.now();
+
   for (const r of results) all.push(...(r || []));
 
   // 阶段 2：基础过滤 - 时间窗口（7 天）+ 按 URL 跨来源去重
@@ -216,8 +267,8 @@ export async function runScan() {
 
   const recent = dedupeByUrl(recentRaw);
 
-  // 按发布时间倒序，优先处理最新内容；单次扫描最多处理 250 条以控制 AI 调用量
-  const maxToProcess = 250;
+  // 按发布时间倒序，优先处理最新内容；单次扫描最多处理 200 条以控制 AI 调用量
+  const maxToProcess = 200;
   const toProcess = recent
     .sort((a, b) => {
       const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
@@ -253,72 +304,133 @@ export async function runScan() {
   `);
 
   let newCount = 0;
+  let aiAttempts = 0;
+  let aiKept = 0;
+
+  const tAiStart = Date.now();
 
   // 阶段 3：AI 深度分析（相关性、真实性、重要程度）- 不再预先按关键词过滤，由 AI 判断
-  for (const item of toProcess) {
-    const text = [item.title, item.summary, item.rawContent].filter(Boolean).join(' ');
-    const matchedKws = getMatchedKeywords(text, kwList);
-    const itemKeywordConfigs = keywordConfigs
-      .filter((cfg) => matchedKws.includes(cfg.keyword))
-      .map((cfg) => ({
-        keyword: cfg.keyword,
-        variants: cfg.variants,
-      }));
-    const aiResult = await filterAndSummarize(item, kwList, itemKeywordConfigs);
-    if (!aiResult.keep) continue;
+  await runWithConcurrency(
+    toProcess,
+    5,
+    async (item, index) => {
+      const text = [item.title, item.summary, item.rawContent]
+        .filter(Boolean)
+        .join(' ');
+      const matchedKws = getMatchedKeywords(text, kwList);
 
-    if (newCount < 3) {
-      const ksSample = Array.isArray(aiResult.keyword_signals)
-        ? aiResult.keyword_signals.map((k) => `${k.keyword}:${k.relation}:${k.score}`).slice(0, 3).join(' | ')
+      // 保守预过滤：仅当完全无关键词命中且来源不属于高信号源时，才跳过 AI 调用
+      if (matchedKws.length === 0 && !isHighSignalSource(item.source)) {
+        return;
+      }
+
+      const itemKeywordConfigs = keywordConfigs
+        .filter((cfg) => matchedKws.includes(cfg.keyword))
+        .map((cfg) => ({
+          keyword: cfg.keyword,
+          variants: cfg.variants,
+        }));
+
+      aiAttempts += 1;
+      const aiResult = await filterAndSummarize(item, kwList, itemKeywordConfigs);
+      if (!aiResult.keep) return;
+      aiKept += 1;
+
+      if (newCount < 3) {
+        const ksSample = Array.isArray(aiResult.keyword_signals)
+          ? aiResult.keyword_signals
+              .map((k) => `${k.keyword}:${k.relation}:${k.score}`)
+              .slice(0, 3)
+              .join(' | ')
+          : '';
+        console.log(
+          `[Scanner] AI result sample — reason: "${(aiResult.reason || '').slice(
+            0,
+            60
+          )}", tags: [${(aiResult.tags || []).join(
+            ','
+          )}], ks: ${ksSample}`
+        );
+      }
+
+      const likes = item.likeCount ?? null;
+      const retweets = item.retweetCount ?? null;
+      const views = item.viewCount ?? null;
+      const matchedKeywordsStr = matchedKws.length ? matchedKws.join(',') : '';
+      const relevanceVal = computeRelevanceScore(
+        aiResult.relevance,
+        item,
+        matchedKws,
+        kwList
+      );
+      const importanceVal = aiResult.importance || 'medium';
+      const authenticityVal = aiResult.authenticity || 'verified';
+
+      const aiDesc = aiResult.description || item.rawContent?.slice(0, 300) || '';
+      const aiReason = aiResult.reason || '';
+      const authorVal = item.author || '';
+      const aiTagsVal = Array.isArray(aiResult.tags)
+        ? aiResult.tags.join(',')
         : '';
-      console.log(
-        `[Scanner] AI result sample — reason: "${(aiResult.reason || '').slice(0, 60)}", tags: [${(aiResult.tags || []).join(
-          ','
-        )}], ks: ${ksSample}`
-      );
+      const keywordSignalsJson = aiResult.keyword_signals
+        ? JSON.stringify(aiResult.keyword_signals)
+        : null;
+
+      try {
+        // 先检查记录是否存在
+        const checkStmt = db.prepare('SELECT id FROM hotspots WHERE source = ? AND external_id = ?');
+        const existing = checkStmt.get(item.source, String(item.externalId));
+        
+        const result = upsertStmt.run(
+          item.source,
+          String(item.externalId),
+          item.title,
+          aiResult.summary || item.summary,
+          item.url,
+          item.rawContent || '',
+          item.publishedAt,
+          likes,
+          retweets,
+          views,
+          relevanceVal,
+          matchedKeywordsStr,
+          importanceVal,
+          authenticityVal,
+          aiDesc,
+          aiReason,
+          authorVal,
+          aiTagsVal,
+          keywordSignalsJson
+        );
+        
+        // 如果之前不存在，则是新记录
+        if (!existing) {
+          newCount += 1;
+        }
+      } catch (e) {
+        console.error('[Scanner] Error upserting hotspot:', e.message);
+      }
     }
+  );
 
-    const likes = item.likeCount ?? null;
-    const retweets = item.retweetCount ?? null;
-    const views = item.viewCount ?? null;
-    const matchedKeywordsStr = matchedKws.length ? matchedKws.join(',') : '';
-    const relevanceVal = computeRelevanceScore(aiResult.relevance, item, matchedKws, kwList);
-    const importanceVal = aiResult.importance || 'medium';
-    const authenticityVal = aiResult.authenticity || 'verified';
+  const tAiEnd = Date.now();
+  const tEnd = Date.now();
 
-    const aiDesc = aiResult.description || item.rawContent?.slice(0, 300) || '';
-    const aiReason = aiResult.reason || '';
-    const authorVal = item.author || '';
-    const aiTagsVal = Array.isArray(aiResult.tags) ? aiResult.tags.join(',') : '';
-    const keywordSignalsJson = aiResult.keyword_signals ? JSON.stringify(aiResult.keyword_signals) : null;
+  const scanResult = {
+    scanned: toProcess.length,
+    new: newCount,
+    timings: {
+      totalMs: tEnd - tStart,
+      fetchMs: tFetchEnd - tFetchStart,
+      aiMs: tAiEnd - tAiStart,
+    },
+    counts: {
+      candidates: all.length,
+      recent: recent.length,
+      aiAttempts,
+      aiKept,
+    },
+  };
 
-    try {
-      const result = upsertStmt.run(
-        item.source,
-        String(item.externalId),
-        item.title,
-        aiResult.summary || item.summary,
-        item.url,
-        item.rawContent || '',
-        item.publishedAt,
-        likes,
-        retweets,
-        views,
-        relevanceVal,
-        matchedKeywordsStr,
-        importanceVal,
-        authenticityVal,
-        aiDesc,
-        aiReason,
-        authorVal,
-        aiTagsVal,
-        keywordSignalsJson
-      );
-      if (result.changes > 0) newCount++;
-    } catch (e) {
-      // UNIQUE violation = already exists, ignore
-    }
-  }
-
-  return { scanned: toProcess.length, new: newCount };
+  return scanResult;
 }
